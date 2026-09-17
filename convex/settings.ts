@@ -13,7 +13,7 @@ const issuerDefaults = {
   iban: "RO21BTRLRONCRT0CN2566601",
   invoiceSeries: "ZB",
   brandName: "ZeroBug",
-  githubRepoUrl: "https://github.com/zerobug-ro/zerobug",
+  githubRepoUrl: "https://github.com/alexalinc/zerobug",
   vercelDashboardUrl: "",
 };
 
