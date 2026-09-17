@@ -26,9 +26,19 @@ Admin: `/admin/login` — parola din `ADMIN_PASSWORD` (default `zerobug-admin` l
 npm run seed
 ```
 
-## Env
+## Deploy pe Vercel
 
-Vezi `.env.example`. Pe Vercel setează aceleași variabile + Convex production URL.
+1. Mergi pe [vercel.com/new](https://vercel.com/new) și importă `alexalinc/zerobug`.
+2. Creează un proiect Convex cloud (`npx convex login` + `npx convex deploy`) și setează pe Vercel:
+   - `NEXT_PUBLIC_CONVEX_URL`
+   - `ADMIN_PASSWORD`, `ADMIN_SESSION_SECRET`
+   - `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`
+   - `RESEND_API_KEY`, `RESEND_FROM_EMAIL`
+3. Webhook Stripe → `https://<domeniu>/api/stripe/webhook`
+4. În Admin → Setări, confirmă URL-ul GitHub (butonul floating).
+
+Repo: https://github.com/alexalinc/zerobug
+
 
 ## Stripe webhook
 
