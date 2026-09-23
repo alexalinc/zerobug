@@ -1,59 +1,100 @@
 "use client";
 
-import Link from "next/link";
 import { useState } from "react";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { ArrowUpRight } from "lucide-react";
+import {
+  MobileNav,
+  MobileNavHeader,
+  MobileNavMenu,
+  MobileNavToggle,
+  NavBody,
+  Navbar,
+  NavbarButton,
+  NavbarLogo,
+  NavItems,
+} from "@/components/ui/resizable-navbar";
+import { cn } from "@/lib/utils";
+
+const NAV_ITEMS = [
+  { name: "Servicii", link: "/servicii" },
+  { name: "Portofoliu", link: "/portofoliu" },
+  { name: "Mentenanță", link: "/mentenanta" },
+  { name: "Despre", link: "/despre" },
+  { name: "Contact", link: "/contact" },
+];
 
 export function MarketingNav() {
-  const [open, setOpen] = useState(false);
-  const links = [
-    { href: "/servicii", label: "Servicii" },
-    { href: "/servicii/ai-automatizari", label: "AI" },
-    { href: "/mentenanta", label: "Mentenanță" },
-    { href: "/despre", label: "Despre" },
-    { href: "/contact", label: "Contact" },
-  ];
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const pathname = usePathname();
+  const isHome = pathname === "/";
 
   return (
-    <header className="sticky top-0 z-40 border-b border-white/10 bg-zinc-950/80 backdrop-blur">
-      <div className="mx-auto max-w-6xl px-6 h-14 flex items-center justify-between">
-        <Link href="/" className="font-semibold tracking-tight text-white">
-          ZeroBug
-        </Link>
-        <nav className="hidden md:flex items-center gap-6 text-sm text-zinc-300">
-          {links.map((l) => (
-            <Link key={l.href} href={l.href} className="hover:text-white">
-              {l.label}
-            </Link>
-          ))}
-          <Link
-            href="/contact"
-            className="rounded-full bg-cyan-300 text-zinc-950 px-3.5 py-1.5 font-medium hover:bg-cyan-200"
+    <>
+      <Navbar forceVisible={!isHome}>
+        <NavBody>
+          <NavbarLogo title="ZeroBug" />
+          <NavItems items={NAV_ITEMS} />
+          <div className="relative z-20 flex items-center gap-2">
+            <NavbarButton href="/servicii" variant="primary">
+              Servicii
+            </NavbarButton>
+          </div>
+        </NavBody>
+
+        <MobileNav>
+          <MobileNavHeader>
+            <NavbarLogo title="ZeroBug" />
+            <MobileNavToggle
+              isOpen={mobileMenuOpen}
+              onClick={() => setMobileMenuOpen((open) => !open)}
+            />
+          </MobileNavHeader>
+          <MobileNavMenu
+            isOpen={mobileMenuOpen}
+            onClose={() => setMobileMenuOpen(false)}
           >
-            Ofertă
-          </Link>
-        </nav>
-        <button
-          className="md:hidden text-white"
-          onClick={() => setOpen(!open)}
-          aria-label="Meniu"
-        >
-          ☰
-        </button>
-      </div>
-      {open && (
-        <div className="md:hidden border-t border-white/10 px-6 py-3 space-y-2 bg-zinc-950">
-          {links.map((l) => (
-            <Link
-              key={l.href}
-              href={l.href}
-              className="block text-zinc-300 py-1"
-              onClick={() => setOpen(false)}
-            >
-              {l.label}
-            </Link>
-          ))}
-        </div>
-      )}
-    </header>
+            {NAV_ITEMS.map((item) => {
+              const active =
+                pathname === item.link ||
+                (item.link !== "/" && pathname.startsWith(item.link));
+              return (
+                <Link
+                  key={item.link}
+                  href={item.link}
+                  className={cn(
+                    "group flex w-full items-center justify-between rounded-xl px-3 py-3 text-[15px] font-medium transition-colors",
+                    active
+                      ? "bg-white/10 text-white"
+                      : "text-white/75 hover:bg-white/5 hover:text-white",
+                  )}
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  {item.name}
+                  <ArrowUpRight
+                    className={cn(
+                      "h-4 w-4 transition-opacity",
+                      active ? "opacity-70" : "opacity-0 group-hover:opacity-50",
+                    )}
+                  />
+                </Link>
+              );
+            })}
+            <div className="mt-4 px-1">
+              <NavbarButton
+                href="/contact"
+                variant="primary"
+                className="w-full"
+                onClick={() => setMobileMenuOpen(false)}
+              >
+                Contactează-ne
+              </NavbarButton>
+            </div>
+          </MobileNavMenu>
+        </MobileNav>
+      </Navbar>
+      {!isHome ? <div className="h-24" aria-hidden /> : null}
+    </>
   );
 }

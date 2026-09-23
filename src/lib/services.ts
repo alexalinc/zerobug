@@ -13,14 +13,16 @@ export const SERVICE_CATEGORIES: ServiceCategory[] = [
     title: "Web development",
     shortTitle: "Web",
     description:
-      "Website-uri de prezentare, corporate, landing pages și platforme custom pe Next.js, React sau WordPress.",
-    accent: "#22d3ee",
+      "Website-uri de prezentare, corporate, landing pages și magazine online pe Next.js, React sau WordPress / WooCommerce.",
+    accent: "#22c55e",
     services: [
       "Creare website de prezentare",
       "Website corporate custom",
       "Landing page-uri pentru Google Ads",
       "Website Next.js / React",
+      "Magazin online Next.js / React",
       "Website WordPress",
+      "Magazin online WordPress / WooCommerce",
       "Website WordPress + Elementor",
       "Migrare website WordPress",
       "Optimizare / refactorizare website existent",
@@ -36,7 +38,7 @@ export const SERVICE_CATEGORIES: ServiceCategory[] = [
     shortTitle: "Shop",
     description:
       "Magazine WooCommerce & Shopify, marketplace-uri, B2B, checkout custom și automatizări de comenzi.",
-    accent: "#34d399",
+    accent: "#16a34a",
     services: [
       "Creare magazin WooCommerce",
       "Dezvoltare Shopify",
@@ -64,7 +66,7 @@ export const SERVICE_CATEGORIES: ServiceCategory[] = [
     shortTitle: "API",
     description:
       "Integrări ERP, CRM, curieri, facturare, plăți, feed-uri și sincronizări între sisteme.",
-    accent: "#a3e635",
+    accent: "#4ade80",
     services: [
       "Integrare API custom",
       "Integrare ERP",
@@ -89,7 +91,7 @@ export const SERVICE_CATEGORIES: ServiceCategory[] = [
     shortTitle: "Mobile",
     description:
       "Aplicații iOS, Android și Flutter pentru magazine, rezervări, loialitate și fluxuri interne.",
-    accent: "#67e8f9",
+    accent: "#22c55e",
     services: [
       "Aplicații iOS",
       "Aplicații Android",
@@ -104,40 +106,12 @@ export const SERVICE_CATEGORIES: ServiceCategory[] = [
     ],
   },
   {
-    slug: "ai-automatizari",
-    title: "AI & automatizări",
-    shortTitle: "AI",
-    description:
-      "Chatbot-uri AI, agenți pentru companii, automatizări CRM/ofertare și integrări LLM — focus ZeroBug 2026.",
-    accent: "#2dd4bf",
-    services: [
-      "Implementare AI pentru firme",
-      "Chatbot AI pentru website",
-      "AI customer support",
-      "AI chatbot conectat la baza de date",
-      "AI pentru procesarea comenzilor",
-      "AI pentru procesarea documentelor",
-      "Automatizare task-uri repetitive",
-      "Automatizări cu API-uri",
-      "AI pentru generarea descrierilor de produse",
-      "AI pentru customer service",
-      "AI pentru email-uri",
-      "AI pentru analiza datelor",
-      "AI agent pentru companie",
-      "Automatizare lead-uri",
-      "Automatizare CRM",
-      "Automatizare ofertare",
-      "Automatizare raportare",
-      "Integrare OpenAI/LLM în aplicații",
-    ],
-  },
-  {
     slug: "google-ads-analytics",
     title: "Google Ads / tracking / eCommerce analytics",
     shortTitle: "Ads",
     description:
       "Conversion tracking server-side, POAS, COGS, Merchant Center, GA4, GTM și dashboard-uri de profit.",
-    accent: "#fbbf24",
+    accent: "#4ade80",
     services: [
       "Google Ads conversion tracking",
       "Server-side conversion tracking",
@@ -160,9 +134,10 @@ export const SERVICE_CATEGORIES: ServiceCategory[] = [
     title: "WordPress / WooCommerce",
     shortTitle: "WP",
     description:
-      "Plugin-uri custom, checkout, pricing, performance, securitate și mentenanță WordPress/WooCommerce.",
-    accent: "#38bdf8",
+      "Magazine online WooCommerce, site-uri WordPress, plugin-uri custom, checkout, performance, securitate și mentenanță.",
+    accent: "#22c55e",
     services: [
+      "Creare magazin online WooCommerce",
       "WooCommerce development",
       "Plugin WordPress custom",
       "Plugin WooCommerce custom",

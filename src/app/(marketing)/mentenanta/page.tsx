@@ -1,22 +1,58 @@
 import { MaintenanceConfigurator } from "@/components/maintenance-configurator";
+import { TextGenerateEffect } from "@/components/ui/text-generate-effect";
+import {
+  JsonLd,
+  breadcrumbSchema,
+  serviceSchema,
+  webPageSchema,
+} from "@/components/json-ld";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
   title: "Mentenanță website",
+  description:
+    "Completează un scurt chestionar despre site, business și infrastructură — primești o estimare de preț și o ofertă de mentenanță de la ZeroBug.",
 };
 
 export default function MentenantaPage() {
   return (
-    <main className="bg-zinc-950 text-white">
-      <div className="mx-auto max-w-6xl px-6 py-16">
-        <h1 className="text-4xl md:text-6xl font-[family-name:var(--font-serif)] tracking-tight">
+    <main className="relative bg-zinc-950 text-white pb-24 lg:pb-16">
+      <JsonLd
+        data={[
+          webPageSchema({
+            path: "/mentenanta",
+            name: "Mentenanță website · ZeroBug",
+            description:
+              "Estimare mentenanță website: update-uri, backup, securitate și support — ofertă personalizată.",
+          }),
+          serviceSchema({
+            name: "Mentenanță website",
+            description:
+              "Update-uri, backup, securitate și support lunar pentru WordPress, WooCommerce și Next.js.",
+            path: "/mentenanta",
+          }),
+          breadcrumbSchema([
+            { name: "Acasă", path: "/" },
+            { name: "Mentenanță", path: "/mentenanta" },
+          ]),
+        ]}
+      />
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-[420px] bg-[radial-gradient(ellipse_at_top,_rgba(34,197,94,0.08),_transparent_55%)]" />
+      <div className="relative mx-auto max-w-6xl px-6 py-16 md:py-20">
+        <p className="text-sm font-medium tracking-wide text-[color:var(--brand)]">
           Mentenanță
-        </h1>
-        <p className="mt-4 text-zinc-400 max-w-2xl">
-          Alege pachetul, complexitatea și add-ons. Poți plăti cu Stripe
-          (abonament) sau solicita factură / contact. Factura PDF se generează
-          lunar și se trimite pe email.
         </p>
+        <TextGenerateEffect
+          as="h1"
+          words="Spune-ne despre site — îți estimăm mentenanța"
+          className="mt-3 max-w-3xl text-4xl font-semibold tracking-tight md:text-6xl"
+          duration={0.4}
+        />
+        <TextGenerateEffect
+          words="Răspunzi la câteva întrebări despre platformă, business și infrastructură. Vezi live un interval de preț și ne trimiți cererea — revenim cu oferta personalizată, fără obligație."
+          className="mt-4 max-w-2xl text-zinc-400 leading-relaxed"
+          duration={0.3}
+        />
         <div className="mt-12">
           <MaintenanceConfigurator />
         </div>

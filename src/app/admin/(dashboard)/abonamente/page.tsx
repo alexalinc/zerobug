@@ -25,7 +25,7 @@ export default function AbonamentePage() {
 
   return (
     <div className="space-y-8">
-      <h1 className="text-3xl font-[family-name:var(--font-serif)]">
+      <h1 className="text-3xl font-semibold tracking-tight">
         Abonamente
       </h1>
 

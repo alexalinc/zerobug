@@ -1,194 +1,98 @@
 import Link from "next/link";
-import { SERVICE_CATEGORIES, MAINTENANCE_PLANS, withVat } from "@/lib/services";
+import { ArrowRight, Check } from "lucide-react";
+import { TextGenerateEffect } from "@/components/ui/text-generate-effect";
+import { FooterTapedDesign } from "@/components/ui/footer-taped-design";
+
+export { CategoryGrid } from "@/components/category-grid";
 
 export function SiteFooter() {
-  return (
-    <footer className="border-t border-white/10 bg-zinc-950 text-zinc-400">
-      <div className="mx-auto max-w-6xl px-6 py-14 grid gap-10 md:grid-cols-3">
-        <div>
-          <p className="text-white text-lg font-semibold tracking-tight">ZeroBug</p>
-          <p className="mt-3 text-sm leading-relaxed">
-            Servicii IT complete: web, e-commerce, API, mobile, AI și tracking
-            Google Ads — plus mentenanță lunară cu facturare automată.
-          </p>
-        </div>
-        <div>
-          <p className="text-white text-sm font-medium mb-3">Navigare</p>
-          <ul className="space-y-2 text-sm">
-            <li>
-              <Link href="/servicii" className="hover:text-white">
-                Servicii
-              </Link>
-            </li>
-            <li>
-              <Link href="/mentenanta" className="hover:text-white">
-                Mentenanță
-              </Link>
-            </li>
-            <li>
-              <Link href="/despre" className="hover:text-white">
-                Despre
-              </Link>
-            </li>
-            <li>
-              <Link href="/contact" className="hover:text-white">
-                Contact
-              </Link>
-            </li>
-          </ul>
-        </div>
-        <div>
-          <p className="text-white text-sm font-medium mb-3">Contact</p>
-          <ul className="space-y-2 text-sm">
-            <li>
-              <a href="mailto:contact@zerobug.ro" className="hover:text-white">
-                contact@zerobug.ro
-              </a>
-            </li>
-            <li>
-              <a href="tel:0773319554" className="hover:text-white">
-                0773 319 554
-              </a>
-            </li>
-            <li>SC AXP GLOBAL RETAIL SRL</li>
-            <li>CUI RO48715417</li>
-          </ul>
-        </div>
-      </div>
-      <div className="border-t border-white/5 px-6 py-4 text-center text-xs text-zinc-500">
-        © {new Date().getFullYear()} ZeroBug ·{" "}
-        <Link href="/politica-confidentialitate" className="hover:text-white">
-          Confidențialitate
-        </Link>{" "}
-        ·{" "}
-        <Link href="/termeni" className="hover:text-white">
-          Termeni
-        </Link>
-      </div>
-    </footer>
-  );
+  return <FooterTapedDesign />;
 }
 
-export function CategoryGrid() {
-  return (
-    <section className="bg-zinc-950 text-white py-24">
-      <div className="mx-auto max-w-6xl px-6">
-        <p className="text-cyan-300 text-sm font-medium tracking-wide">Servicii</p>
-        <h2 className="mt-3 text-3xl md:text-5xl font-[family-name:var(--font-serif)] tracking-tight max-w-2xl">
-          Tot ce ai nevoie pentru digital — într-un singur partener.
-        </h2>
-        <div className="mt-14 grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
-          {SERVICE_CATEGORIES.map((cat) => (
-            <Link
-              key={cat.slug}
-              href={`/servicii/${cat.slug}`}
-              className="group block border-t border-white/15 pt-5 hover:border-cyan-300/60 transition-colors"
-            >
-              <div className="flex items-baseline justify-between gap-3">
-                <h3 className="text-xl font-medium group-hover:text-cyan-200 transition-colors">
-                  {cat.title}
-                </h3>
-                <span
-                  className="h-2 w-2 rounded-full shrink-0"
-                  style={{ backgroundColor: cat.accent }}
-                />
-              </div>
-              <p className="mt-3 text-sm text-zinc-400 leading-relaxed">
-                {cat.description}
-              </p>
-              <p className="mt-4 text-sm text-cyan-300/80">
-                {cat.services.length} servicii →
-              </p>
-            </Link>
-          ))}
-        </div>
-      </div>
-    </section>
-  );
-}
-
-export function AiFocusSection() {
-  return (
-    <section className="relative overflow-hidden bg-zinc-900 text-white py-24">
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_rgba(34,211,238,0.12),_transparent_55%)]" />
-      <div className="relative mx-auto max-w-6xl px-6 grid gap-10 lg:grid-cols-2 items-center">
-        <div>
-          <p className="text-cyan-300 text-sm font-medium">AI & automatizări · 2026</p>
-          <h2 className="mt-3 text-3xl md:text-5xl font-[family-name:var(--font-serif)] tracking-tight">
-            Chatbot-uri, agenți și fluxuri care reduc munca repetitivă.
-          </h2>
-          <p className="mt-5 text-zinc-400 leading-relaxed">
-            Implementăm AI conectat la baza ta de date, automatizări CRM/ofertare
-            și procesare documente — nu demo-uri, ci sisteme integrate în operațiuni.
-          </p>
-          <Link
-            href="/servicii/ai-automatizari"
-            className="mt-8 inline-flex rounded-full bg-cyan-300 text-zinc-950 px-5 py-3 text-sm font-medium hover:bg-cyan-200 transition-colors"
-          >
-            Explorează AI ZeroBug
-          </Link>
-        </div>
-        <ul className="space-y-4 text-sm text-zinc-300">
-          {[
-            "Chatbot AI pe website, legat de catalog / FAQ / CRM",
-            "AI pentru customer support și procesare comenzi",
-            "Automatizare lead-uri, ofertare și raportare",
-            "Integrare OpenAI / LLM în aplicații existente",
-          ].map((item) => (
-            <li
-              key={item}
-              className="border-l-2 border-cyan-400/50 pl-4 py-1 reveal-on-scroll"
-            >
-              {item}
-            </li>
-          ))}
-        </ul>
-      </div>
-    </section>
-  );
-}
+const MAINTENANCE_HIGHLIGHTS = [
+  "Update-uri și patch-uri de securitate",
+  "Backup și monitorizare uptime",
+  "Support pe email, cu SLA pe plan",
+  "Factură PDF generată lunar pe email",
+];
 
 export function MaintenanceTeaser() {
   return (
-    <section className="bg-zinc-950 text-white py-24">
-      <div className="mx-auto max-w-6xl px-6">
-        <p className="text-cyan-300 text-sm font-medium">Mentenanță</p>
-        <h2 className="mt-3 text-3xl md:text-5xl font-[family-name:var(--font-serif)] tracking-tight max-w-xl">
-          De la 19,99 € / lună + TVA
-        </h2>
-        <p className="mt-4 text-zinc-400 max-w-xl">
-          Update-uri, backup, securitate și support — factură PDF generată lunar
-          și trimisă pe email.
-        </p>
-        <div className="mt-12 grid gap-6 md:grid-cols-3">
-          {MAINTENANCE_PLANS.map((plan) => {
-            const price = withVat(plan.priceNet);
-            return (
-              <div
-                key={plan.id}
-                className={`border border-white/10 p-6 ${
-                  plan.highlighted ? "ring-1 ring-cyan-300/40" : ""
-                }`}
-              >
-                <h3 className="text-lg font-medium">{plan.name}</h3>
-                <p className="mt-2 text-3xl tracking-tight">
-                  {price.net.toFixed(2)} €
-                  <span className="text-sm text-zinc-500 font-normal">
-                    {" "}
-                    /lună + TVA
+    <section className="relative overflow-hidden bg-zinc-950 text-white py-24">
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top_left,_rgba(34,197,94,0.1),_transparent_55%)]" />
+      <div className="relative mx-auto max-w-6xl px-6">
+        <div className="grid gap-10 lg:grid-cols-[1.15fr_0.85fr] lg:items-end">
+          <div>
+            <p className="text-sm font-medium tracking-wide text-[color:var(--brand)]">
+              Mentenanță
+            </p>
+            <TextGenerateEffect
+              as="h2"
+              words="Site-ul tău, îngrijit lunar — de la 19,99 € + TVA"
+              className="mt-3 max-w-2xl text-3xl font-semibold tracking-tight md:text-5xl"
+              duration={0.35}
+            />
+            <TextGenerateEffect
+              words="Răspunzi la câteva întrebări despre platformă, trafic și nevoi — vezi live un interval de preț și ne trimiți cererea. Fără obligație."
+              className="mt-4 max-w-xl text-zinc-400 leading-relaxed"
+              duration={0.3}
+            />
+
+            <ul className="mt-8 grid gap-3 sm:grid-cols-2">
+              {MAINTENANCE_HIGHLIGHTS.map((item) => (
+                <li
+                  key={item}
+                  className="flex items-start gap-2.5 text-sm text-zinc-300"
+                >
+                  <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[color:var(--brand)]/15 text-[color:var(--brand)]">
+                    <Check className="h-3 w-3" strokeWidth={3} />
                   </span>
-                </p>
-                <p className="mt-3 text-sm text-zinc-400">{plan.description}</p>
-              </div>
-            );
-          })}
+                  {item}
+                </li>
+              ))}
+            </ul>
+
+            <div className="mt-10 flex flex-col gap-3 sm:flex-row sm:items-center">
+              <Link
+                href="/mentenanta"
+                className="inline-flex items-center justify-center gap-2 rounded-full bg-[color:var(--brand)] px-5 py-3 text-sm font-medium text-zinc-950 transition-colors hover:bg-[color:var(--brand-soft)]"
+              >
+                Estimează mentenanța
+                <ArrowRight className="h-4 w-4" />
+              </Link>
+              <p className="text-sm text-zinc-500">
+                ~2 minute · ofertă personalizată
+              </p>
+            </div>
+          </div>
+
+          <div className="relative border border-white/10 bg-white/[0.03] p-6 md:p-8">
+            <p className="text-xs font-medium uppercase tracking-wider text-zinc-500">
+              Interval tipic
+            </p>
+            <p className="mt-3 text-4xl font-semibold tracking-tight md:text-5xl">
+              19,99–99,99 €
+              <span className="mt-1 block text-base font-normal text-zinc-500">
+                /lună + TVA
+              </span>
+            </p>
+            <div className="mt-6 space-y-3 border-t border-white/10 pt-6 text-sm text-zinc-400">
+              <p>
+                <span className="text-white">Starter</span> — site simplu
+              </p>
+              <p>
+                <span className="text-white">Pro</span> — magazin / site activ
+              </p>
+              <p>
+                <span className="text-white">Business</span> — trafic &amp; SLA
+              </p>
+            </div>
+            <p className="mt-6 text-xs leading-relaxed text-zinc-500">
+              Prețul final depinde de platformă, trafic și nevoi — îl estimăm
+              împreună în wizard.
+            </p>
+          </div>
         </div>
-        <Link
-          href="/mentenanta"
-          className="mt-10 inline-flex rounded-full border border-white/20 px-5 py-3 text-sm hover:bg-white/5 transition-colors"
-        >
-          Configurează pachetul
-        </Link>
       </div>
     </section>
   );
@@ -196,15 +100,21 @@ export function MaintenanceTeaser() {
 
 export function CtaBand() {
   return (
-    <section className="bg-cyan-300 text-zinc-950 py-16">
+    <section className="bg-[color:var(--brand)] text-zinc-950 py-16">
       <div className="mx-auto max-w-6xl px-6 flex flex-col md:flex-row md:items-center md:justify-between gap-6">
         <div>
-          <h2 className="text-2xl md:text-3xl font-[family-name:var(--font-serif)]">
-            Ai un proiect pe masă?
-          </h2>
-          <p className="mt-2 text-zinc-800/80">
-            Spune-ne ce construiești — revenim cu o ofertă clară.
-          </p>
+          <TextGenerateEffect
+            as="h2"
+            words="Ai un proiect pe masă?"
+            className="text-2xl md:text-3xl font-semibold tracking-tight text-zinc-950"
+            duration={0.35}
+          />
+          <TextGenerateEffect
+            words="Spune-ne ce construiești — revenim cu o ofertă clară."
+            className="mt-2 text-zinc-800/80"
+            filter={false}
+            duration={0.35}
+          />
         </div>
         <Link
           href="/contact"

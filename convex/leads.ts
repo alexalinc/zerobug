@@ -1,5 +1,6 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
+import { internal } from "./_generated/api";
 
 export const create = mutation({
   args: {
@@ -18,14 +19,37 @@ export const create = mutation({
     planKey: v.optional(v.string()),
     complexity: v.optional(v.string()),
     addons: v.optional(v.array(v.string())),
+    budget: v.optional(v.number()),
+    quoteDetails: v.optional(v.string()),
   },
   returns: v.id("leads"),
   handler: async (ctx, args) => {
-    return await ctx.db.insert("leads", {
+    const id = await ctx.db.insert("leads", {
       ...args,
       status: "new",
       createdAt: Date.now(),
     });
+
+    // Service quotes stay in admin only — no email notification.
+    if (args.type !== "service_quote") {
+      await ctx.scheduler.runAfter(0, internal.leadsActions.notifyLeadEmail, {
+        type: args.type,
+        name: args.name,
+        email: args.email,
+        phone: args.phone,
+        company: args.company,
+        message: args.message,
+        serviceCategory: args.serviceCategory,
+        serviceName: args.serviceName,
+        planKey: args.planKey,
+        complexity: args.complexity,
+        addons: args.addons,
+        budget: args.budget,
+        quoteDetails: args.quoteDetails,
+      });
+    }
+
+    return id;
   },
 });
 

@@ -149,6 +149,10 @@ export const handleWebhookEvent = internalAction({
           planKey,
         });
         if (plan) {
+          const companyDoc = await ctx.runQuery(
+            internal.companies.getInternal,
+            { id: result.companyId },
+          );
           await ctx.runAction(
             internal.invoicesBilling.generateForSubscription,
             {
@@ -157,6 +161,9 @@ export const handleWebhookEvent = internalAction({
               planName: plan.name,
               priceNet: plan.priceNet,
               stripeInvoiceId: invoice.id,
+              monthlyAmount: companyDoc?.monthlyAmount,
+              vatMode: companyDoc?.vatMode,
+              invoiceDescription: companyDoc?.invoiceDescription,
             },
           );
         }

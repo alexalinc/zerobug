@@ -10,8 +10,31 @@ function formatMoney(n: number) {
   return `${n.toFixed(2)} EUR`;
 }
 
+function wrapText(
+  text: string,
+  font: { widthOfTextAtSize: (t: string, s: number) => number },
+  size: number,
+  maxWidth: number,
+): string[] {
+  const words = text.split(/\s+/);
+  const lines: string[] = [];
+  let current = "";
+  for (const word of words) {
+    const next = current ? `${current} ${word}` : word;
+    if (font.widthOfTextAtSize(next, size) <= maxWidth) {
+      current = next;
+    } else {
+      if (current) lines.push(current);
+      current = word;
+    }
+  }
+  if (current) lines.push(current);
+  return lines;
+}
+
 async function buildInvoicePdf(data: {
   number: string;
+  series: string;
   periodLabel: string;
   issuedAt: number;
   dueAt: number;
@@ -28,7 +51,9 @@ async function buildInvoicePdf(data: {
     name: string;
     email: string;
     cui?: string;
+    regCom?: string;
     address?: string;
+    phone?: string;
   };
   issuer: {
     companyName: string;
@@ -40,6 +65,7 @@ async function buildInvoicePdf(data: {
     bank: string;
     iban: string;
     brandName: string;
+    invoiceSeries: string;
   };
 }): Promise<Uint8Array> {
   const pdf = await PDFDocument.create();
@@ -47,85 +73,165 @@ async function buildInvoicePdf(data: {
   const font = await pdf.embedFont(StandardFonts.Helvetica);
   const bold = await pdf.embedFont(StandardFonts.HelveticaBold);
   const { height } = page.getSize();
-  let y = height - 50;
+  let y = height - 42;
 
-  const draw = (text: string, x: number, size = 10, isBold = false) => {
+  const draw = (
+    text: string,
+    x: number,
+    size = 10,
+    isBold = false,
+    color = rgb(0.1, 0.1, 0.1),
+  ) => {
     page.drawText(text, {
       x,
       y,
       size,
       font: isBold ? bold : font,
-      color: rgb(0.1, 0.1, 0.1),
+      color,
     });
   };
 
-  draw(data.issuer.brandName || "ZeroBug", 50, 22, true);
-  y -= 28;
-  draw("FACTURA", 50, 16, true);
-  y -= 20;
-  draw(`Nr. ${data.number}`, 50, 11, true);
-  draw(`Perioada: ${data.periodLabel}`, 280, 11);
-  y -= 16;
-  draw(`Data: ${new Date(data.issuedAt).toLocaleDateString("ro-RO")}`, 50, 10);
-  draw(`Scadenta: ${new Date(data.dueAt).toLocaleDateString("ro-RO")}`, 280, 10);
+  const drawBlock = (
+    lines: string[],
+    x: number,
+    size: number,
+    isBoldFirst = false,
+  ) => {
+    let localY = y;
+    lines.forEach((line, i) => {
+      if (!line) return;
+      page.drawText(line, {
+        x,
+        y: localY,
+        size,
+        font: isBoldFirst && i === 0 ? bold : font,
+        color: rgb(0.12, 0.12, 0.12),
+      });
+      localY -= size + 3;
+    });
+    return localY;
+  };
+
+  // Title
+  draw(data.issuer.brandName || "ZeroBug", 50, 18, true);
+  draw("FACTURA", 460, 16, true);
   y -= 28;
 
-  draw("Furnizor", 50, 11, true);
-  draw("Client", 300, 11, true);
+  page.drawLine({
+    start: { x: 50, y },
+    end: { x: 545, y },
+    thickness: 0.8,
+    color: rgb(0.85, 0.85, 0.85),
+  });
+  y -= 18;
+
+  // 3 columns: Furnizor | Factură meta | Client
+  const col1 = 50;
+  const col2 = 230;
+  const col3 = 400;
+  const issued = new Date(data.issuedAt).toLocaleDateString("ro-RO");
+  const due = new Date(data.dueAt).toLocaleDateString("ro-RO");
+
+  draw("FURNIZOR", col1, 9, true, rgb(0.4, 0.4, 0.4));
+  draw("FACTURA", col2, 9, true, rgb(0.4, 0.4, 0.4));
+  draw("CLIENT", col3, 9, true, rgb(0.4, 0.4, 0.4));
   y -= 14;
-  draw(data.issuer.companyName, 50, 9);
-  draw(data.company.name, 300, 9);
-  y -= 12;
-  draw(`CUI: ${data.issuer.cui}`, 50, 9);
-  draw(data.company.cui ? `CUI: ${data.company.cui}` : "", 300, 9);
-  y -= 12;
-  draw(`Reg. Com.: ${data.issuer.regCom}`, 50, 9);
-  draw(data.company.email, 300, 9);
-  y -= 12;
-  draw(data.issuer.address, 50, 9);
-  if (data.company.address) draw(data.company.address, 300, 9);
-  y -= 12;
-  draw(`Tel: ${data.issuer.phone}`, 50, 9);
-  y -= 12;
-  draw(data.issuer.email, 50, 9);
-  y -= 28;
 
-  draw("Descriere", 50, 10, true);
-  draw("Cant.", 320, 10, true);
-  draw("Pret net", 380, 10, true);
-  draw("Total", 480, 10, true);
+  const issuerLines = [
+    data.issuer.companyName,
+    `CUI: ${data.issuer.cui}`,
+    `Reg. Com.: ${data.issuer.regCom}`,
+    ...wrapText(data.issuer.address, font, 8, 165),
+    `Tel: ${data.issuer.phone}`,
+    data.issuer.email,
+  ];
+
+  const metaLines = [
+    `Serie: ${data.series || data.issuer.invoiceSeries}`,
+    `Numar: ${data.number}`,
+    `Data: ${issued}`,
+    `Scadenta: ${due}`,
+    `Perioada: ${data.periodLabel}`,
+  ];
+
+  const clientLines = [
+    data.company.name,
+    data.company.cui ? `CUI: ${data.company.cui}` : "",
+    data.company.regCom ? `Reg. Com.: ${data.company.regCom}` : "",
+    ...(data.company.address
+      ? wrapText(data.company.address, font, 8, 145)
+      : []),
+    data.company.phone ? `Tel: ${data.company.phone}` : "",
+    data.company.email,
+  ].filter(Boolean);
+
+  const y1 = drawBlock(issuerLines, col1, 8, true);
+  const y2 = drawBlock(metaLines, col2, 8, false);
+  const y3 = drawBlock(clientLines, col3, 8, true);
+  y = Math.min(y1, y2, y3) - 16;
+
+  page.drawLine({
+    start: { x: 50, y },
+    end: { x: 545, y },
+    thickness: 0.5,
+    color: rgb(0.8, 0.8, 0.8),
+  });
+  y -= 18;
+
+  draw("Descriere", 50, 9, true);
+  draw("Cant.", 340, 9, true);
+  draw("Pret net", 390, 9, true);
+  draw("TVA", 460, 9, true);
+  draw("Total", 510, 9, true);
   y -= 6;
   page.drawLine({
     start: { x: 50, y },
     end: { x: 545, y },
     thickness: 0.5,
-    color: rgb(0.7, 0.7, 0.7),
+    color: rgb(0.75, 0.75, 0.75),
   });
-  y -= 16;
+  y -= 14;
 
   for (const line of data.lines) {
-    const lineTotal = line.quantity * line.unitNet;
-    draw(line.description.slice(0, 55), 50, 9);
-    draw(String(line.quantity), 330, 9);
-    draw(formatMoney(line.unitNet), 380, 9);
-    draw(formatMoney(lineTotal), 480, 9);
-    y -= 16;
+    const lineNet = line.quantity * line.unitNet;
+    const lineVat = Math.round(lineNet * line.vatRate * 100) / 100;
+    const descLines = wrapText(line.description, font, 8, 280);
+    for (let i = 0; i < descLines.length; i++) {
+      draw(descLines[i]!, 50, 8);
+      if (i === 0) {
+        draw(String(line.quantity), 348, 8);
+        draw(formatMoney(line.unitNet), 390, 8);
+        draw(formatMoney(lineVat), 460, 8);
+        draw(formatMoney(lineNet), 510, 8);
+      }
+      y -= 12;
+    }
+    y -= 4;
   }
 
-  y -= 20;
-  draw(`Subtotal: ${formatMoney(data.netAmount)}`, 400, 10);
-  y -= 14;
-  draw(`TVA 21%: ${formatMoney(data.vatAmount)}`, 400, 10);
-  y -= 14;
-  draw(`TOTAL: ${formatMoney(data.grossAmount)}`, 400, 12, true);
-  y -= 36;
-  draw("Date bancare", 50, 11, true);
-  y -= 14;
-  draw(`Banca: ${data.issuer.bank}`, 50, 9);
   y -= 12;
-  draw(`IBAN: ${data.issuer.iban}`, 50, 9);
-  y -= 24;
-  draw("Factura generata automat de ZeroBug.", 50, 8);
+  draw(`Subtotal (fara TVA): ${formatMoney(data.netAmount)}`, 360, 9);
+  y -= 13;
+  draw(`TVA 21%: ${formatMoney(data.vatAmount)}`, 360, 9);
+  y -= 14;
+  draw(`TOTAL DE PLATA: ${formatMoney(data.grossAmount)}`, 360, 11, true);
+  y -= 28;
+
+  draw("Date bancare", 50, 10, true);
+  y -= 13;
+  draw(`Banca: ${data.issuer.bank}`, 50, 8);
+  y -= 11;
+  draw(`IBAN: ${data.issuer.iban}`, 50, 8);
+  y -= 22;
+
+  const legal =
+    "Factura circula fara semnatura si stampila conform art. 319 alin. (29) din Legea nr. 227/2015 privind Codul fiscal.";
+  for (const line of wrapText(legal, font, 7, 495)) {
+    draw(line, 50, 7, false, rgb(0.35, 0.35, 0.35));
+    y -= 10;
+  }
+  y -= 8;
+  draw("Document generat automat de ZeroBug.", 50, 7, false, rgb(0.45, 0.45, 0.45));
 
   return await pdf.save();
 }
@@ -144,6 +250,7 @@ export const generateAndSend = internalAction({
 
     const bytes = await buildInvoicePdf({
       number: invoice.number,
+      series: invoice.series,
       periodLabel: invoice.periodLabel,
       issuedAt: invoice.issuedAt,
       dueAt: invoice.dueAt,
@@ -204,9 +311,22 @@ export const sendEmailOnly = internalAction({
         }
       }
 
+      const issuer = await ctx.runQuery(internal.settings.getIssuerInternal, {});
+      const accountingEmail =
+        typeof issuer?.accountingEmail === "string"
+          ? issuer.accountingEmail.trim()
+          : "";
+      const bcc =
+        accountingEmail &&
+        accountingEmail.toLowerCase() !==
+          invoice.company.email.trim().toLowerCase()
+          ? [accountingEmail]
+          : undefined;
+
       await resend.emails.send({
         from,
         to: invoice.company.email,
+        bcc,
         subject: `Factura ${invoice.number} — ZeroBug`,
         html: `
           <p>Bună ziua,</p>

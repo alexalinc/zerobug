@@ -10,6 +10,14 @@ export default defineSchema({
     email: v.string(),
     phone: v.optional(v.string()),
     notes: v.optional(v.string()),
+    /** Monthly billing amount entered by admin */
+    monthlyAmount: v.optional(v.number()),
+    /** excluded = amount is net (+TVA); included = amount is gross (extract TVA) */
+    vatMode: v.optional(
+      v.union(v.literal("excluded"), v.literal("included")),
+    ),
+    /** Line text printed on every invoice for this company */
+    invoiceDescription: v.optional(v.string()),
     status: v.union(v.literal("active"), v.literal("suspended")),
     stripeCustomerId: v.optional(v.string()),
     createdAt: v.number(),
@@ -114,6 +122,8 @@ export default defineSchema({
     planKey: v.optional(v.string()),
     complexity: v.optional(v.string()),
     addons: v.optional(v.array(v.string())),
+    budget: v.optional(v.number()),
+    quoteDetails: v.optional(v.string()),
     status: v.union(
       v.literal("new"),
       v.literal("contacted"),
@@ -138,6 +148,8 @@ export default defineSchema({
     iban: v.string(),
     invoiceSeries: v.string(),
     brandName: v.string(),
+    /** Receives a BCC copy of every invoice email (monthly + manual) */
+    accountingEmail: v.optional(v.string()),
     githubRepoUrl: v.optional(v.string()),
     vercelDashboardUrl: v.optional(v.string()),
   }).index("by_key", ["key"]),

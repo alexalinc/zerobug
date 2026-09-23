@@ -13,50 +13,76 @@ const issuerDefaults = {
   iban: "RO21BTRLRONCRT0CN2566601",
   invoiceSeries: "ZB",
   brandName: "ZeroBug",
+  accountingEmail: "exactexpert@yahoo.com",
   githubRepoUrl: "https://github.com/alexalinc/zerobug",
   vercelDashboardUrl: "",
 };
 
+const issuerReturn = v.object({
+  _id: v.optional(v.id("settings")),
+  companyName: v.string(),
+  cui: v.string(),
+  regCom: v.string(),
+  address: v.string(),
+  phone: v.string(),
+  email: v.string(),
+  bank: v.string(),
+  iban: v.string(),
+  invoiceSeries: v.string(),
+  brandName: v.string(),
+  accountingEmail: v.optional(v.string()),
+  githubRepoUrl: v.optional(v.string()),
+  vercelDashboardUrl: v.optional(v.string()),
+});
+
+function mapIssuer(existing: {
+  _id: string;
+  companyName: string;
+  cui: string;
+  regCom: string;
+  address: string;
+  phone: string;
+  email: string;
+  bank: string;
+  iban: string;
+  invoiceSeries: string;
+  brandName: string;
+  accountingEmail?: string;
+  githubRepoUrl?: string;
+  vercelDashboardUrl?: string;
+}) {
+  return {
+    _id: existing._id as never,
+    companyName: existing.companyName,
+    cui: existing.cui,
+    regCom: existing.regCom,
+    address: existing.address,
+    phone: existing.phone,
+    email: existing.email,
+    bank: existing.bank,
+    iban: existing.iban,
+    invoiceSeries: existing.invoiceSeries,
+    brandName: existing.brandName,
+    accountingEmail:
+      existing.accountingEmail ?? issuerDefaults.accountingEmail,
+    githubRepoUrl: existing.githubRepoUrl,
+    vercelDashboardUrl: existing.vercelDashboardUrl,
+  };
+}
+
 export const getIssuer = query({
   args: {},
-  returns: v.object({
-    _id: v.optional(v.id("settings")),
-    companyName: v.string(),
-    cui: v.string(),
-    regCom: v.string(),
-    address: v.string(),
-    phone: v.string(),
-    email: v.string(),
-    bank: v.string(),
-    iban: v.string(),
-    invoiceSeries: v.string(),
-    brandName: v.string(),
-    githubRepoUrl: v.optional(v.string()),
-    vercelDashboardUrl: v.optional(v.string()),
-  }),
+  returns: issuerReturn,
   handler: async (ctx) => {
     const existing = await ctx.db
       .query("settings")
       .withIndex("by_key", (q) => q.eq("key", "issuer"))
       .unique();
     if (!existing) {
-      return issuerDefaults;
+      const { key: _key, ...defaults } = issuerDefaults;
+      return { ...defaults, _id: undefined };
     }
-    return {
-      _id: existing._id,
-      companyName: existing.companyName,
-      cui: existing.cui,
-      regCom: existing.regCom,
-      address: existing.address,
-      phone: existing.phone,
-      email: existing.email,
-      bank: existing.bank,
-      iban: existing.iban,
-      invoiceSeries: existing.invoiceSeries,
-      brandName: existing.brandName,
-      githubRepoUrl: existing.githubRepoUrl,
-      vercelDashboardUrl: existing.vercelDashboardUrl,
-    };
+    return mapIssuer(existing);
   },
 });
 
@@ -72,6 +98,7 @@ export const upsertIssuer = mutation({
     iban: v.string(),
     invoiceSeries: v.string(),
     brandName: v.string(),
+    accountingEmail: v.optional(v.string()),
     githubRepoUrl: v.optional(v.string()),
     vercelDashboardUrl: v.optional(v.string()),
   },
@@ -99,6 +126,10 @@ export const seedDefaults = mutation({
       .unique();
     if (!existing) {
       await ctx.db.insert("settings", issuerDefaults);
+    } else if (!existing.accountingEmail) {
+      await ctx.db.patch(existing._id, {
+        accountingEmail: issuerDefaults.accountingEmail,
+      });
     }
 
     const plans = [
@@ -172,6 +203,11 @@ export const getIssuerInternal = internalQuery({
       .query("settings")
       .withIndex("by_key", (q) => q.eq("key", "issuer"))
       .unique();
-    return existing ?? issuerDefaults;
+    if (!existing) return issuerDefaults;
+    return {
+      ...existing,
+      accountingEmail:
+        existing.accountingEmail ?? issuerDefaults.accountingEmail,
+    };
   },
 });

@@ -1,8 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import {
+  checkLoginRateLimit,
+  clearLoginRateLimit,
   createAdminSession,
   destroyAdminSession,
-  verifyAdminPassword,
+  getClientIp,
+  recordLoginFailure,
+  verifyAdminCredentials,
 } from "@/lib/admin-auth";
 
 export async function POST(req: NextRequest) {
@@ -15,11 +19,37 @@ export async function POST(req: NextRequest) {
   }
 
   if (action === "login") {
-    const password = String(body.password || "");
-    if (!verifyAdminPassword(password)) {
-      return NextResponse.json({ error: "Parolă invalidă" }, { status: 401 });
+    const ip = getClientIp(req);
+    const limit = checkLoginRateLimit(ip);
+    if (!limit.ok) {
+      return NextResponse.json(
+        {
+          error: `Prea multe încercări. Reîncearcă în ${limit.retryAfterSec}s.`,
+          retryAfterSec: limit.retryAfterSec,
+        },
+        {
+          status: 429,
+          headers: {
+            "Retry-After": String(limit.retryAfterSec ?? 900),
+          },
+        },
+      );
     }
-    await createAdminSession();
+
+    const username = String(body.username || "");
+    const password = String(body.password || "");
+    const rememberMe = Boolean(body.rememberMe);
+
+    if (!verifyAdminCredentials(username, password)) {
+      recordLoginFailure(ip);
+      return NextResponse.json(
+        { error: "Utilizator sau parolă invalidă" },
+        { status: 401 },
+      );
+    }
+
+    clearLoginRateLimit(ip);
+    await createAdminSession(rememberMe);
     return NextResponse.json({ ok: true });
   }
 
