@@ -30,6 +30,10 @@ ZeroBug construiește și întreține produse digitale pentru companii — de la
 
 {{SERVICE_LINKS}}
 
+## Exemple pagini serviciu
+
+{{SERVICE_SPOKE_LINKS}}
+
 ## Contact
 
 - Email: contact@zerobug.ro

@@ -20,6 +20,9 @@ type Props = {
   categoryTitle: string;
   accent: string;
   services: string[];
+  /** Pre-select a service (e.g. from spoke landing CTA) */
+  initialService?: string;
+  id?: string;
 };
 
 function formatBudget(value: number) {
@@ -76,9 +79,15 @@ export function ServiceQuoteConfigurator({
   categoryTitle,
   accent,
   services,
+  initialService,
+  id,
 }: Props) {
   const createLead = useMutation(api.leads.create);
-  const [selected, setSelected] = useState<string[]>([]);
+  const [selected, setSelected] = useState<string[]>(() =>
+    initialService && services.includes(initialService)
+      ? [initialService]
+      : [],
+  );
   const [budget, setBudget] = useState(3000);
   const [status, setStatus] = useState<"idle" | "ok" | "err">("idle");
   const [loading, setLoading] = useState(false);
@@ -131,7 +140,11 @@ export function ServiceQuoteConfigurator({
   }
 
   return (
-    <form onSubmit={onSubmit} className="space-y-10 md:space-y-12">
+    <form
+      id={id}
+      onSubmit={onSubmit}
+      className="space-y-10 md:space-y-12"
+    >
       <section>
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div>

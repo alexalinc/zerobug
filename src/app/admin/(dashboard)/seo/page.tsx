@@ -188,7 +188,8 @@ export default function SeoAdminPage() {
           <div className="space-y-2 rounded-2xl border border-white/[0.08] bg-white/[0.03] p-5">
             <Label>llms.txt</Label>
             <p className="text-[11px] text-zinc-500">
-              Placeholders: {"{{SITE_URL}}"}, {"{{SERVICE_LINKS}}"}.
+              Placeholders: {"{{SITE_URL}}"}, {"{{SERVICE_LINKS}}"},{" "}
+              {"{{SERVICE_SPOKE_LINKS}}"}.
             </p>
             <textarea
               value={llmsTxt}

@@ -41,11 +41,31 @@ const TESTIMONIALS = [
   },
 ];
 
+function messageFromSearchParams(): string {
+  if (typeof window === "undefined") return "";
+  const params = new URLSearchParams(window.location.search);
+  const serviciu = params.get("serviciu")?.trim();
+  const categorie = params.get("categorie")?.trim();
+  if (!serviciu && !categorie) return "";
+  const parts = [
+    serviciu ? `Serviciu: ${serviciu}` : null,
+    categorie ? `Categorie: ${categorie}` : null,
+    "",
+    "Detalii proiect:",
+  ].filter((p): p is string => p !== null);
+  return parts.join("\n");
+}
+
 export function ContactSection() {
   const createLead = useMutation(api.leads.create);
   const [status, setStatus] = useState<"idle" | "ok" | "err">("idle");
   const [loading, setLoading] = useState(false);
   const [active, setActive] = useState(0);
+  const [prefillMessage, setPrefillMessage] = useState("");
+
+  useEffect(() => {
+    setPrefillMessage(messageFromSearchParams());
+  }, []);
 
   useEffect(() => {
     const id = window.setInterval(() => {
@@ -219,6 +239,8 @@ export function ContactSection() {
                   name="message"
                   required
                   rows={5}
+                  defaultValue={prefillMessage}
+                  key={prefillMessage || "empty"}
                   placeholder="Cum te putem ajuta?"
                   className="resize-none rounded-xl border-white/10 bg-zinc-900/80 text-white placeholder:text-zinc-600"
                 />

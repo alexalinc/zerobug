@@ -1,4 +1,5 @@
 import { SERVICE_CATEGORIES } from "@/lib/services";
+import { ALL_SERVICE_PAGES, getServiceHref } from "@/lib/service-pages";
 
 export function getSiteUrl() {
   const fromEnv = process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "");
@@ -42,13 +43,19 @@ export function getSitemapEntries(): SitemapEntry[] {
     },
   ];
 
-  const servicePages: SitemapEntry[] = SERVICE_CATEGORIES.map((c) => ({
+  const categoryPages: SitemapEntry[] = SERVICE_CATEGORIES.map((c) => ({
     path: `/servicii/${c.slug}`,
     priority: 0.85,
     changeFrequency: "weekly" as const,
   }));
 
-  return [...staticPages, ...servicePages];
+  const serviceSpokes: SitemapEntry[] = ALL_SERVICE_PAGES.map((p) => ({
+    path: getServiceHref(p),
+    priority: 0.7,
+    changeFrequency: "monthly" as const,
+  }));
+
+  return [...staticPages, ...categoryPages, ...serviceSpokes];
 }
 
 export const DEFAULT_ROBOTS_TXT = `User-agent: *
@@ -80,6 +87,10 @@ ZeroBug construiește și întreține produse digitale pentru companii — de la
 
 {{SERVICE_LINKS}}
 
+## Exemple pagini serviciu
+
+{{SERVICE_SPOKE_LINKS}}
+
 ## Contact
 
 - Email: contact@zerobug.ro
@@ -106,10 +117,18 @@ export function renderLlmsTxt(
     (c) => `- ${c.title}: ${siteUrl}/servicii/${c.slug}`,
   ).join("\n");
 
+  const spokeLinks = ALL_SERVICE_PAGES.filter(
+    (p) => p.categorySlug === "web-development",
+  )
+    .slice(0, 8)
+    .map((p) => `- ${p.name}: ${siteUrl}${getServiceHref(p)}`)
+    .join("\n");
+
   return (
     template
       .replaceAll("{{SITE_URL}}", siteUrl)
       .replaceAll("{{SERVICE_LINKS}}", serviceLinks)
+      .replaceAll("{{SERVICE_SPOKE_LINKS}}", spokeLinks)
       .trim() + "\n"
   );
 }
