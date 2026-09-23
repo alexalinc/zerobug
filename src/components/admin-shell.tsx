@@ -10,6 +10,7 @@ import {
   FileText,
   Inbox,
   Settings,
+  Search,
   LogOut,
   Loader2,
   Upload,
@@ -27,6 +28,7 @@ const NAV = [
   { href: "/admin/abonamente", label: "Abonamente", icon: CreditCard },
   { href: "/admin/facturi", label: "Facturi", icon: FileText },
   { href: "/admin/lead-uri", label: "Cereri ofertă", icon: Inbox },
+  { href: "/admin/seo", label: "SEO", icon: Search },
   { href: "/admin/setari", label: "Setări", icon: Settings },
 ];
 
@@ -41,7 +43,7 @@ type GitStatus = {
 export function AdminShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
-  const issuer = useQuery(api.settings.getIssuer);
+  const issuer = useQuery(api.settings.getIssuer, {});
   const [gitStatus, setGitStatus] = useState<GitStatus | null>(null);
   const [pushing, setPushing] = useState(false);
   const [pushMsg, setPushMsg] = useState<string | null>(null);

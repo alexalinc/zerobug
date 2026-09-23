@@ -14,7 +14,7 @@ const TYPE_LABEL: Record<string, string> = {
 
 function formatBudget(budget?: number) {
   if (budget == null) return null;
-  return `${budget.toLocaleString("ro-RO")} €`;
+  return `${budget.toLocaleString("ro-RO")} lei`;
 }
 
 function planLabel(planKey?: string) {

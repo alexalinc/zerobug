@@ -7,7 +7,7 @@ import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
 import { Resend } from "resend";
 
 function formatMoney(n: number) {
-  return `${n.toFixed(2)} EUR`;
+  return `${n.toFixed(2)} lei`;
 }
 
 function wrapText(
@@ -147,7 +147,6 @@ async function buildInvoicePdf(data: {
   ];
 
   const metaLines = [
-    `Serie: ${data.series || data.issuer.invoiceSeries}`,
     `Numar: ${data.number}`,
     `Data: ${issued}`,
     `Scadenta: ${due}`,
@@ -331,7 +330,7 @@ export const sendEmailOnly = internalAction({
         html: `
           <p>Bună ziua,</p>
           <p>Atașat găsiți factura <strong>${invoice.number}</strong> pentru perioada <strong>${invoice.periodLabel}</strong>.</p>
-          <p>Total de plată: <strong>${invoice.grossAmount.toFixed(2)} EUR</strong> (TVA inclus).</p>
+          <p>Total de plată: <strong>${invoice.grossAmount.toFixed(2)} lei</strong> (TVA inclus).</p>
           <p>Cu stimă,<br/>Echipa ZeroBug</p>
         `,
         attachments: pdfBuffer

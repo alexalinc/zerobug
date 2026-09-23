@@ -16,6 +16,7 @@ import type * as invoicesBilling from "../invoicesBilling.js";
 import type * as leads from "../leads.js";
 import type * as leadsActions from "../leadsActions.js";
 import type * as lib_vat from "../lib/vat.js";
+import type * as seo from "../seo.js";
 import type * as settings from "../settings.js";
 import type * as stripe from "../stripe.js";
 import type * as stripeWebhook from "../stripeWebhook.js";
@@ -36,6 +37,7 @@ declare const fullApi: ApiFromModules<{
   leads: typeof leads;
   leadsActions: typeof leadsActions;
   "lib/vat": typeof lib_vat;
+  seo: typeof seo;
   settings: typeof settings;
   stripe: typeof stripe;
   stripeWebhook: typeof stripeWebhook;

@@ -58,7 +58,7 @@ export default function AbonamentePage() {
             <option value="">Selectează</option>
             {(plans ?? []).map((p) => (
               <option key={p._id} value={p._id}>
-                {p.name} — {p.priceNet} €
+                {p.name} — {p.priceNet} lei
               </option>
             ))}
           </select>

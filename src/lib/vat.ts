@@ -22,9 +22,12 @@ export function computeVatAmounts(
   return { net, vat, gross };
 }
 
-export function formatEur(n: number) {
+export function formatRon(n: number) {
   return `${n.toLocaleString("ro-RO", {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
-  })} €`;
+  })} lei`;
 }
+
+/** @deprecated use formatRon */
+export const formatEur = formatRon;

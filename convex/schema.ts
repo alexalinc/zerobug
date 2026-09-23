@@ -147,10 +147,20 @@ export default defineSchema({
     bank: v.string(),
     iban: v.string(),
     invoiceSeries: v.string(),
+    /** Next invoice sequence number to issue (synced to invoiceCounters on save) */
+    invoiceNextNumber: v.optional(v.number()),
     brandName: v.string(),
     /** Receives a BCC copy of every invoice email (monthly + manual) */
     accountingEmail: v.optional(v.string()),
     githubRepoUrl: v.optional(v.string()),
     vercelDashboardUrl: v.optional(v.string()),
+  }).index("by_key", ["key"]),
+
+  seoSettings: defineTable({
+    key: v.literal("main"),
+    robotsTxt: v.string(),
+    llmsTxt: v.string(),
+    sitemapLastGeneratedAt: v.optional(v.number()),
+    updatedAt: v.number(),
   }).index("by_key", ["key"]),
 });

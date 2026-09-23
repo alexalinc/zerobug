@@ -1,0 +1,118 @@
+import { SERVICE_CATEGORIES } from "@/lib/services";
+
+export function getSiteUrl() {
+  const fromEnv = process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "");
+  if (fromEnv) return fromEnv;
+  if (process.env.VERCEL_PROJECT_PRODUCTION_URL) {
+    return `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`;
+  }
+  if (process.env.VERCEL_URL) {
+    return `https://${process.env.VERCEL_URL}`;
+  }
+  return "https://zerobug.ro";
+}
+
+export type SitemapEntry = {
+  path: string;
+  priority: number;
+  changeFrequency:
+    | "always"
+    | "hourly"
+    | "daily"
+    | "weekly"
+    | "monthly"
+    | "yearly"
+    | "never";
+};
+
+/** Public marketing URLs included in sitemap.xml */
+export function getSitemapEntries(): SitemapEntry[] {
+  const staticPages: SitemapEntry[] = [
+    { path: "/", priority: 1, changeFrequency: "weekly" },
+    { path: "/servicii", priority: 0.9, changeFrequency: "weekly" },
+    { path: "/mentenanta", priority: 0.9, changeFrequency: "weekly" },
+    { path: "/portofoliu", priority: 0.8, changeFrequency: "monthly" },
+    { path: "/despre", priority: 0.7, changeFrequency: "monthly" },
+    { path: "/contact", priority: 0.8, changeFrequency: "monthly" },
+    { path: "/termeni", priority: 0.3, changeFrequency: "yearly" },
+    {
+      path: "/politica-confidentialitate",
+      priority: 0.3,
+      changeFrequency: "yearly",
+    },
+  ];
+
+  const servicePages: SitemapEntry[] = SERVICE_CATEGORIES.map((c) => ({
+    path: `/servicii/${c.slug}`,
+    priority: 0.85,
+    changeFrequency: "weekly" as const,
+  }));
+
+  return [...staticPages, ...servicePages];
+}
+
+export const DEFAULT_ROBOTS_TXT = `User-agent: *
+Allow: /
+
+Disallow: /admin
+Disallow: /api/
+Disallow: /mentenanta/success
+
+Sitemap: {{SITE_URL}}/sitemap.xml
+`;
+
+export const DEFAULT_LLMS_TXT = `# ZeroBug
+
+> Agenție IT din România: web development, e-commerce, API & integrări, mobile, AI (OpenAI / Claude), Google Ads tracking și mentenanță WordPress / WooCommerce.
+
+ZeroBug construiește și întreține produse digitale pentru companii — de la site-uri și magazine online la automatizări, tracking și abonamente de mentenanță cu facturare lunară.
+
+## Site
+
+- Home: {{SITE_URL}}/
+- Servicii: {{SITE_URL}}/servicii
+- Mentenanță: {{SITE_URL}}/mentenanta
+- Portofoliu: {{SITE_URL}}/portofoliu
+- Despre: {{SITE_URL}}/despre
+- Contact: {{SITE_URL}}/contact
+
+## Categorii servicii
+
+{{SERVICE_LINKS}}
+
+## Contact
+
+- Email: contact@zerobug.ro
+- Site: {{SITE_URL}}
+
+## Optional
+
+- Sitemap: {{SITE_URL}}/sitemap.xml
+- Robots: {{SITE_URL}}/robots.txt
+`;
+
+export function renderRobotsTxt(
+  template: string,
+  siteUrl = getSiteUrl(),
+): string {
+  return template.replaceAll("{{SITE_URL}}", siteUrl).trim() + "\n";
+}
+
+export function renderLlmsTxt(
+  template: string,
+  siteUrl = getSiteUrl(),
+): string {
+  const serviceLinks = SERVICE_CATEGORIES.map(
+    (c) => `- ${c.title}: ${siteUrl}/servicii/${c.slug}`,
+  ).join("\n");
+
+  return (
+    template
+      .replaceAll("{{SITE_URL}}", siteUrl)
+      .replaceAll("{{SERVICE_LINKS}}", serviceLinks)
+      .trim() + "\n"
+  );
+}
+
+/** Seconds in one week — used by Next.js sitemap revalidate */
+export const SITEMAP_REVALIDATE_SECONDS = 60 * 60 * 24 * 7;

@@ -62,8 +62,17 @@ export const allocateNumber = internalMutation({
         lastNumber: next,
       });
     }
-    // Full unique number; series also stored separately on the invoice
-    return `${args.series}-${args.year}-${String(next).padStart(4, "0")}`;
+    // Also bump settings.invoiceNextNumber so Setări stays in sync
+    const issuer = await ctx.db
+      .query("settings")
+      .withIndex("by_key", (q) => q.eq("key", "issuer"))
+      .unique();
+    if (issuer) {
+      await ctx.db.patch(issuer._id, { invoiceNextNumber: next + 1 });
+    }
+
+    // Format: SERIE + padded seq → e.g. DEV0010
+    return `${args.series}${String(next).padStart(4, "0")}`;
   },
 });
 
@@ -91,7 +100,7 @@ export const peekNextNumber = query({
       series,
       year: args.year,
       nextSeq,
-      formatted: `${series}-${args.year}-${String(nextSeq).padStart(4, "0")}`,
+      formatted: `${series}${String(nextSeq).padStart(4, "0")}`,
     };
   },
 });
@@ -196,7 +205,7 @@ export const createRecord = internalMutation({
   handler: async (ctx, args) => {
     return await ctx.db.insert("invoices", {
       ...args,
-      currency: "EUR",
+      currency: "RON",
       emailStatus: "pending",
       status: "issued",
     });

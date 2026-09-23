@@ -14,7 +14,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { formatEur } from "@/lib/vat";
+import { formatRon } from "@/lib/vat";
 
 function StatCard({
   label,
@@ -59,27 +59,27 @@ export default function AdminOverviewPage() {
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard
           label="Total facturat"
-          value={loading ? "—" : formatEur(stats.totalGross)}
+          value={loading ? "—" : formatRon(stats.totalGross)}
           hint={
             loading
               ? undefined
-              : `Net ${formatEur(stats.totalNet)} · TVA ${formatEur(stats.totalVat)}`
+              : `Net ${formatRon(stats.totalNet)} · TVA ${formatRon(stats.totalVat)}`
           }
           href="/admin/facturi"
         />
         <StatCard
           label="TVA total"
-          value={loading ? "—" : formatEur(stats.totalVat)}
+          value={loading ? "—" : formatRon(stats.totalVat)}
           hint="Din facturile emise"
           href="/admin/facturi"
         />
         <StatCard
           label="MRR estimat"
-          value={loading ? "—" : formatEur(stats.monthlyRecurringGross)}
+          value={loading ? "—" : formatRon(stats.monthlyRecurringGross)}
           hint={
             loading
               ? undefined
-              : `Net ${formatEur(stats.monthlyRecurringNet)} / lună`
+              : `Net ${formatRon(stats.monthlyRecurringNet)} / lună`
           }
           href="/admin/firme"
         />
@@ -152,7 +152,7 @@ export default function AdminOverviewPage() {
                       fontSize: 12,
                     }}
                     formatter={(value) => [
-                      formatEur(Number(value ?? 0)),
+                      formatRon(Number(value ?? 0)),
                       "Brut",
                     ]}
                   />
@@ -201,7 +201,7 @@ export default function AdminOverviewPage() {
                       fontSize: 12,
                     }}
                     formatter={(value) => [
-                      formatEur(Number(value ?? 0)),
+                      formatRon(Number(value ?? 0)),
                       "TVA",
                     ]}
                   />

@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import type { Id } from "@convex/_generated/dataModel";
 import {
   computeVatAmounts,
-  formatEur,
+  formatRon,
   type VatMode,
 } from "@/lib/vat";
 import { cn } from "@/lib/utils";
@@ -186,12 +186,12 @@ export default function FirmePage() {
         </div>
 
         <div className="space-y-1.5">
-          <Label>Sumă lunară (€)</Label>
+          <Label>Sumă lunară (lei)</Label>
           <Input
             type="number"
             min="0"
             step="0.01"
-            placeholder="ex: 49.99"
+            placeholder="ex: 250"
             value={form.monthlyAmount}
             onChange={(e) =>
               setForm((f) => ({ ...f, monthlyAmount: e.target.value }))
@@ -229,19 +229,19 @@ export default function FirmePage() {
             <p>
               Net:{" "}
               <span className="font-medium text-white">
-                {formatEur(preview.net)}
+                {formatRon(preview.net)}
               </span>
             </p>
             <p>
               TVA 21%:{" "}
               <span className="font-medium text-white">
-                {formatEur(preview.vat)}
+                {formatRon(preview.vat)}
               </span>
             </p>
             <p>
               Total:{" "}
               <span className="font-medium text-[color:var(--brand)]">
-                {formatEur(preview.gross)}
+                {formatRon(preview.gross)}
               </span>
             </p>
           </div>
@@ -305,13 +305,13 @@ export default function FirmePage() {
                     {amounts ? (
                       <div className="space-y-0.5 text-xs">
                         <p>
-                          {formatEur(c.monthlyAmount!)}{" "}
+                          {formatRon(c.monthlyAmount!)}{" "}
                           <span className="text-zinc-500">
                             ({c.vatMode === "included" ? "TVA inclus" : "fără TVA"})
                           </span>
                         </p>
                         <p className="text-zinc-500">
-                          → {formatEur(amounts.gross)} total
+                          → {formatRon(amounts.gross)} total
                         </p>
                       </div>
                     ) : (

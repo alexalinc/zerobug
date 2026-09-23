@@ -12,6 +12,7 @@ const issuerDefaults = {
   bank: "TRANSILVANIA",
   iban: "RO21BTRLRONCRT0CN2566601",
   invoiceSeries: "ZB",
+  invoiceNextNumber: 1,
   brandName: "ZeroBug",
   accountingEmail: "exactexpert@yahoo.com",
   githubRepoUrl: "https://github.com/alexalinc/zerobug",
@@ -29,60 +30,74 @@ const issuerReturn = v.object({
   bank: v.string(),
   iban: v.string(),
   invoiceSeries: v.string(),
+  invoiceNextNumber: v.number(),
   brandName: v.string(),
   accountingEmail: v.optional(v.string()),
   githubRepoUrl: v.optional(v.string()),
   vercelDashboardUrl: v.optional(v.string()),
 });
 
-function mapIssuer(existing: {
-  _id: string;
-  companyName: string;
-  cui: string;
-  regCom: string;
-  address: string;
-  phone: string;
-  email: string;
-  bank: string;
-  iban: string;
-  invoiceSeries: string;
-  brandName: string;
-  accountingEmail?: string;
-  githubRepoUrl?: string;
-  vercelDashboardUrl?: string;
-}) {
-  return {
-    _id: existing._id as never,
-    companyName: existing.companyName,
-    cui: existing.cui,
-    regCom: existing.regCom,
-    address: existing.address,
-    phone: existing.phone,
-    email: existing.email,
-    bank: existing.bank,
-    iban: existing.iban,
-    invoiceSeries: existing.invoiceSeries,
-    brandName: existing.brandName,
-    accountingEmail:
-      existing.accountingEmail ?? issuerDefaults.accountingEmail,
-    githubRepoUrl: existing.githubRepoUrl,
-    vercelDashboardUrl: existing.vercelDashboardUrl,
-  };
-}
-
 export const getIssuer = query({
-  args: {},
+  args: { year: v.optional(v.number()) },
   returns: issuerReturn,
-  handler: async (ctx) => {
+  handler: async (ctx, args) => {
     const existing = await ctx.db
       .query("settings")
       .withIndex("by_key", (q) => q.eq("key", "issuer"))
       .unique();
-    if (!existing) {
-      const { key: _key, ...defaults } = issuerDefaults;
-      return { ...defaults, _id: undefined };
+
+    // Prefer counter when year is provided by the client
+    let nextFromCounter: number | undefined;
+    if (typeof args.year === "number") {
+      const fromCounter = await ctx.db
+        .query("invoiceCounters")
+        .withIndex("by_year", (q) => q.eq("year", args.year!))
+        .unique();
+      if (fromCounter) nextFromCounter = fromCounter.lastNumber + 1;
     }
-    return mapIssuer(existing);
+
+    if (!existing) {
+      return {
+        companyName: issuerDefaults.companyName,
+        cui: issuerDefaults.cui,
+        regCom: issuerDefaults.regCom,
+        address: issuerDefaults.address,
+        phone: issuerDefaults.phone,
+        email: issuerDefaults.email,
+        bank: issuerDefaults.bank,
+        iban: issuerDefaults.iban,
+        invoiceSeries: issuerDefaults.invoiceSeries,
+        invoiceNextNumber:
+          nextFromCounter ?? issuerDefaults.invoiceNextNumber,
+        brandName: issuerDefaults.brandName,
+        accountingEmail: issuerDefaults.accountingEmail,
+        githubRepoUrl: issuerDefaults.githubRepoUrl,
+        vercelDashboardUrl: issuerDefaults.vercelDashboardUrl,
+        _id: undefined,
+      };
+    }
+
+    return {
+      _id: existing._id,
+      companyName: existing.companyName,
+      cui: existing.cui,
+      regCom: existing.regCom,
+      address: existing.address,
+      phone: existing.phone,
+      email: existing.email,
+      bank: existing.bank,
+      iban: existing.iban,
+      invoiceSeries: existing.invoiceSeries,
+      invoiceNextNumber:
+        nextFromCounter ??
+        existing.invoiceNextNumber ??
+        issuerDefaults.invoiceNextNumber,
+      brandName: existing.brandName,
+      accountingEmail:
+        existing.accountingEmail ?? issuerDefaults.accountingEmail,
+      githubRepoUrl: existing.githubRepoUrl,
+      vercelDashboardUrl: existing.vercelDashboardUrl,
+    };
   },
 });
 
@@ -97,22 +112,65 @@ export const upsertIssuer = mutation({
     bank: v.string(),
     iban: v.string(),
     invoiceSeries: v.string(),
+    invoiceNextNumber: v.number(),
     brandName: v.string(),
     accountingEmail: v.optional(v.string()),
     githubRepoUrl: v.optional(v.string()),
     vercelDashboardUrl: v.optional(v.string()),
+    /** Year whose invoice counter is updated */
+    year: v.number(),
   },
   returns: v.id("settings"),
   handler: async (ctx, args) => {
+    const next = Math.max(1, Math.floor(args.invoiceNextNumber));
+    const year = args.year;
+
+    const payload = {
+      companyName: args.companyName,
+      cui: args.cui,
+      regCom: args.regCom,
+      address: args.address,
+      phone: args.phone,
+      email: args.email,
+      bank: args.bank,
+      iban: args.iban,
+      invoiceSeries: args.invoiceSeries.trim().toUpperCase() || "ZB",
+      invoiceNextNumber: next,
+      brandName: args.brandName,
+      accountingEmail: args.accountingEmail,
+      githubRepoUrl: args.githubRepoUrl,
+      vercelDashboardUrl: args.vercelDashboardUrl,
+    };
+
     const existing = await ctx.db
       .query("settings")
       .withIndex("by_key", (q) => q.eq("key", "issuer"))
       .unique();
+
+    let settingsId;
     if (existing) {
-      await ctx.db.patch(existing._id, args);
-      return existing._id;
+      await ctx.db.patch(existing._id, payload);
+      settingsId = existing._id;
+    } else {
+      settingsId = await ctx.db.insert("settings", {
+        key: "issuer",
+        ...payload,
+      });
     }
-    return await ctx.db.insert("settings", { key: "issuer", ...args });
+
+    // Sync counter so next allocateNumber starts at `next`
+    const lastNumber = next - 1;
+    const counter = await ctx.db
+      .query("invoiceCounters")
+      .withIndex("by_year", (q) => q.eq("year", year))
+      .unique();
+    if (counter) {
+      await ctx.db.patch(counter._id, { lastNumber });
+    } else {
+      await ctx.db.insert("invoiceCounters", { year, lastNumber });
+    }
+
+    return settingsId;
   },
 });
 
@@ -126,10 +184,20 @@ export const seedDefaults = mutation({
       .unique();
     if (!existing) {
       await ctx.db.insert("settings", issuerDefaults);
-    } else if (!existing.accountingEmail) {
-      await ctx.db.patch(existing._id, {
-        accountingEmail: issuerDefaults.accountingEmail,
-      });
+    } else {
+      const patch: {
+        accountingEmail?: string;
+        invoiceNextNumber?: number;
+      } = {};
+      if (!existing.accountingEmail) {
+        patch.accountingEmail = issuerDefaults.accountingEmail;
+      }
+      if (existing.invoiceNextNumber == null) {
+        patch.invoiceNextNumber = issuerDefaults.invoiceNextNumber;
+      }
+      if (Object.keys(patch).length > 0) {
+        await ctx.db.patch(existing._id, patch);
+      }
     }
 
     const plans = [
@@ -208,6 +276,8 @@ export const getIssuerInternal = internalQuery({
       ...existing,
       accountingEmail:
         existing.accountingEmail ?? issuerDefaults.accountingEmail,
+      invoiceNextNumber:
+        existing.invoiceNextNumber ?? issuerDefaults.invoiceNextNumber,
     };
   },
 });

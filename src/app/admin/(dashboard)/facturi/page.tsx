@@ -4,7 +4,7 @@ import { useAction, useQuery } from "convex/react";
 import { api } from "@convex/_generated/api";
 import { Button } from "@/components/ui/button";
 import type { Id } from "@convex/_generated/dataModel";
-import { formatEur } from "@/lib/vat";
+import { formatRon } from "@/lib/vat";
 import { useMemo, useState } from "react";
 import { cn } from "@/lib/utils";
 
@@ -124,8 +124,7 @@ export default function FacturiPage() {
                 {nextNumber?.formatted ?? "—"}
               </p>
               <p className="mt-0.5 text-zinc-600">
-                Serie {nextNumber?.series ?? "ZB"} · Data{" "}
-                {new Date().toLocaleDateString("ro-RO")}
+                Data {new Date().toLocaleDateString("ro-RO")}
               </p>
             </div>
           </div>
@@ -150,10 +149,10 @@ export default function FacturiPage() {
                     </td>
                     <td className="p-3 text-xs text-zinc-400">
                       <p>
-                        Net {formatEur(row.net)} · TVA {formatEur(row.vat)}
+                        Net {formatRon(row.net)} · TVA {formatRon(row.vat)}
                       </p>
                       <p className="mt-0.5 font-medium text-white">
-                        Total {formatEur(row.gross)}
+                        Total {formatRon(row.gross)}
                       </p>
                       <p className="mt-0.5 text-zinc-600">
                         {row.vatMode === "included"
@@ -163,7 +162,7 @@ export default function FacturiPage() {
                     </td>
                     <td className="max-w-[240px] p-3 text-xs text-zinc-400">
                       <p>
-                        Serie {nextNumber?.series ?? "ZB"} · Nr.{" "}
+                        Nr.{" "}
                         {row.alreadyGenerated
                           ? "deja alocat"
                           : (nextNumber?.formatted ?? "—")}
@@ -293,10 +292,10 @@ function InvoiceRow({
         ) : null}
       </td>
       <td className="p-3 text-zinc-400">{inv.periodLabel}</td>
-      <td className="p-3 text-zinc-400">{formatEur(inv.netAmount)}</td>
-      <td className="p-3 text-zinc-400">{formatEur(inv.vatAmount)}</td>
+      <td className="p-3 text-zinc-400">{formatRon(inv.netAmount)}</td>
+      <td className="p-3 text-zinc-400">{formatRon(inv.vatAmount)}</td>
       <td className="p-3 font-medium text-white">
-        {formatEur(inv.grossAmount)}
+        {formatRon(inv.grossAmount)}
       </td>
       <td className="p-3">
         <span
