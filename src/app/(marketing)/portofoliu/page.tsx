@@ -1,5 +1,4 @@
 import Link from "next/link";
-import type { Metadata } from "next";
 import { PortfolioGrid } from "@/components/portfolio-grid";
 import { PORTFOLIO_ITEMS, PORTFOLIO_MORE } from "@/lib/portfolio";
 import { TextGenerateEffect } from "@/components/ui/text-generate-effect";
@@ -8,12 +7,9 @@ import {
   breadcrumbSchema,
   webPageSchema,
 } from "@/components/json-ld";
+import { PAGE_SEO, pageMetadata } from "@/lib/page-seo";
 
-export const metadata: Metadata = {
-  title: "Portofoliu",
-  description:
-    "Proiecte ZeroBug: Spido, Profit Bid, Bijuteria Iris, Mercana, WooTrack, Clinica Dronelor și alte livrabile custom.",
-};
+export const metadata = pageMetadata(PAGE_SEO.portofoliu);
 
 export default function PortofoliuPage() {
   return (
@@ -21,10 +17,9 @@ export default function PortofoliuPage() {
       <JsonLd
         data={[
           webPageSchema({
-            path: "/portofoliu",
-            name: "Portofoliu · ZeroBug",
-            description:
-              "Proiecte ZeroBug: Spido, Profit Bid, Bijuteria Iris, Mercana, WooTrack, Clinica Dronelor.",
+            path: PAGE_SEO.portofoliu.path,
+            name: `${PAGE_SEO.portofoliu.title} · ZeroBug`,
+            description: PAGE_SEO.portofoliu.description,
             type: "CollectionPage",
           }),
           breadcrumbSchema([

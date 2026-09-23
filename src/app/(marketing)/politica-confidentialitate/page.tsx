@@ -1,15 +1,11 @@
-import type { Metadata } from "next";
 import {
   JsonLd,
   breadcrumbSchema,
   webPageSchema,
 } from "@/components/json-ld";
+import { PAGE_SEO, pageMetadata } from "@/lib/page-seo";
 
-export const metadata: Metadata = {
-  title: "Politica de confidențialitate",
-  description:
-    "Cum prelucrează ZeroBug (SC AXP GLOBAL RETAIL SRL) datele din formulare și facturare.",
-};
+export const metadata = pageMetadata(PAGE_SEO.privacy);
 
 export default function PrivacyPage() {
   return (
@@ -17,10 +13,9 @@ export default function PrivacyPage() {
       <JsonLd
         data={[
           webPageSchema({
-            path: "/politica-confidentialitate",
-            name: "Politica de confidențialitate · ZeroBug",
-            description:
-              "Politica de confidențialitate ZeroBug pentru datele din formulare și facturare.",
+            path: PAGE_SEO.privacy.path,
+            name: `${PAGE_SEO.privacy.title} · ZeroBug`,
+            description: PAGE_SEO.privacy.description,
           }),
           breadcrumbSchema([
             { name: "Acasă", path: "/" },

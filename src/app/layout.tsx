@@ -11,7 +11,24 @@ export const metadata: Metadata = {
     template: "%s · ZeroBug",
   },
   description:
-    "Web development, e-commerce, API, mobile, AI cu OpenAI & Claude, Google Ads tracking și mentenanță WordPress/WooCommerce.",
+    "Agenție IT din România: dezvoltare web, e-commerce, API, mobile, AI (OpenAI & Claude), Google Ads tracking și mentenanță WordPress / WooCommerce.",
+  openGraph: {
+    type: "website",
+    locale: "ro_RO",
+    siteName: "ZeroBug",
+    images: [
+      {
+        url: "/images/logozerobug.png",
+        width: 1024,
+        height: 1024,
+        alt: "ZeroBug",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    images: ["/images/logozerobug.png"],
+  },
   icons: {
     icon: [{ url: "/images/logozerobug.png", type: "image/png" }],
     apple: [{ url: "/images/logozerobug.png", type: "image/png" }],

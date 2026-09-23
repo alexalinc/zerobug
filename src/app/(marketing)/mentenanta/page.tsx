@@ -6,13 +6,9 @@ import {
   serviceSchema,
   webPageSchema,
 } from "@/components/json-ld";
-import type { Metadata } from "next";
+import { PAGE_SEO, pageMetadata } from "@/lib/page-seo";
 
-export const metadata: Metadata = {
-  title: "Mentenanță website",
-  description:
-    "Completează un scurt chestionar despre site, business și infrastructură — primești o estimare de preț și o ofertă de mentenanță de la ZeroBug.",
-};
+export const metadata = pageMetadata(PAGE_SEO.mentenanta);
 
 export default function MentenantaPage() {
   return (
@@ -20,15 +16,13 @@ export default function MentenantaPage() {
       <JsonLd
         data={[
           webPageSchema({
-            path: "/mentenanta",
-            name: "Mentenanță website · ZeroBug",
-            description:
-              "Estimare mentenanță website: update-uri, backup, securitate și support — ofertă personalizată.",
+            path: PAGE_SEO.mentenanta.path,
+            name: `${PAGE_SEO.mentenanta.title} · ZeroBug`,
+            description: PAGE_SEO.mentenanta.description,
           }),
           serviceSchema({
             name: "Mentenanță website",
-            description:
-              "Update-uri, backup, securitate și support lunar pentru WordPress, WooCommerce și Next.js.",
+            description: PAGE_SEO.mentenanta.description,
             path: "/mentenanta",
           }),
           breadcrumbSchema([

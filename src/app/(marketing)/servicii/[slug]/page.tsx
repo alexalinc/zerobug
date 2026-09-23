@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getCategoryBySlug, SERVICE_CATEGORIES } from "@/lib/services";
@@ -9,7 +10,7 @@ import {
   serviceSchema,
   webPageSchema,
 } from "@/components/json-ld";
-import type { Metadata } from "next";
+import { serviceCategoryMetadata } from "@/lib/page-seo";
 
 type Props = { params: Promise<{ slug: string }> };
 
@@ -20,10 +21,14 @@ export async function generateStaticParams() {
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
   const cat = getCategoryBySlug(slug);
-  return {
-    title: cat?.title ?? "Serviciu",
-    description: cat?.description,
-  };
+  if (!cat) {
+    return { title: "Serviciu" };
+  }
+  return serviceCategoryMetadata({
+    title: cat.title,
+    description: cat.description,
+    slug: cat.slug,
+  });
 }
 
 export default async function ServiceCategoryPage({ params }: Props) {

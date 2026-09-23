@@ -1,15 +1,11 @@
-import type { Metadata } from "next";
 import {
   JsonLd,
   breadcrumbSchema,
   webPageSchema,
 } from "@/components/json-ld";
+import { PAGE_SEO, pageMetadata } from "@/lib/page-seo";
 
-export const metadata: Metadata = {
-  title: "Termeni și condiții",
-  description:
-    "Termeni și condiții ZeroBug — oferte, mentenanță lunară, facturare și anulare abonament.",
-};
+export const metadata = pageMetadata(PAGE_SEO.termeni);
 
 export default function TermsPage() {
   return (
@@ -17,10 +13,9 @@ export default function TermsPage() {
       <JsonLd
         data={[
           webPageSchema({
-            path: "/termeni",
-            name: "Termeni și condiții · ZeroBug",
-            description:
-              "Termeni și condiții pentru serviciile și abonamentele ZeroBug.",
+            path: PAGE_SEO.termeni.path,
+            name: `${PAGE_SEO.termeni.title} · ZeroBug`,
+            description: PAGE_SEO.termeni.description,
           }),
           breadcrumbSchema([
             { name: "Acasă", path: "/" },

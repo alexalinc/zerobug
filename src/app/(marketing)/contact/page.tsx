@@ -4,13 +4,9 @@ import {
   breadcrumbSchema,
   webPageSchema,
 } from "@/components/json-ld";
-import type { Metadata } from "next";
+import { PAGE_SEO, pageMetadata } from "@/lib/page-seo";
 
-export const metadata: Metadata = {
-  title: "Contact",
-  description:
-    "Contactează ZeroBug — web, e-commerce, AI, mentenanță. Revenim de obicei în aceeași zi lucrătoare.",
-};
+export const metadata = pageMetadata(PAGE_SEO.contact);
 
 export default function ContactPage() {
   return (
@@ -18,10 +14,9 @@ export default function ContactPage() {
       <JsonLd
         data={[
           webPageSchema({
-            path: "/contact",
-            name: "Contact · ZeroBug",
-            description:
-              "Contactează ZeroBug pentru web, e-commerce, AI și mentenanță.",
+            path: PAGE_SEO.contact.path,
+            name: `${PAGE_SEO.contact.title} · ZeroBug`,
+            description: PAGE_SEO.contact.description,
             type: "ContactPage",
           }),
           breadcrumbSchema([

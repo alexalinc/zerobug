@@ -13,12 +13,9 @@ import {
   breadcrumbSchema,
   webPageSchema,
 } from "@/components/json-ld";
+import { PAGE_SEO, pageMetadata } from "@/lib/page-seo";
 
-export const metadata: Metadata = {
-  title: "Despre ZeroBug",
-  description:
-    "ZeroBug — servicii IT, AI și mentenanță. Website-uri, magazine, API-uri, aplicații mobile și automatizări pentru business-uri din România.",
-};
+export const metadata: Metadata = pageMetadata(PAGE_SEO.despre);
 
 const VALUES = [
   {
@@ -52,10 +49,9 @@ export default function DesprePage() {
       <JsonLd
         data={[
           webPageSchema({
-            path: "/despre",
-            name: "Despre ZeroBug",
-            description:
-              "ZeroBug — servicii IT, AI și mentenanță pentru business-uri din România.",
+            path: PAGE_SEO.despre.path,
+            name: PAGE_SEO.despre.title,
+            description: PAGE_SEO.despre.description,
             type: "AboutPage",
           }),
           breadcrumbSchema([

@@ -16,6 +16,9 @@ import {
   faqPageSchema,
   webPageSchema,
 } from "@/components/json-ld";
+import { PAGE_SEO, pageMetadata } from "@/lib/page-seo";
+
+export const metadata = pageMetadata(PAGE_SEO.home);
 
 export default function HomePage() {
   return (
@@ -23,10 +26,9 @@ export default function HomePage() {
       <JsonLd
         data={[
           webPageSchema({
-            path: "/",
-            name: "ZeroBug — Servicii IT, AI & Mentenanță",
-            description:
-              "Web development, e-commerce, API, mobile, AI cu OpenAI & Claude, Google Ads tracking și mentenanță WordPress/WooCommerce.",
+            path: PAGE_SEO.home.path,
+            name: PAGE_SEO.home.title,
+            description: PAGE_SEO.home.description,
           }),
           faqPageSchema(getAllFaqItems()),
         ]}

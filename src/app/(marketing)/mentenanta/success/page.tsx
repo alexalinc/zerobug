@@ -1,16 +1,12 @@
 import Link from "next/link";
-import type { Metadata } from "next";
 import {
   JsonLd,
   breadcrumbSchema,
   webPageSchema,
 } from "@/components/json-ld";
+import { PAGE_SEO, pageMetadata } from "@/lib/page-seo";
 
-export const metadata: Metadata = {
-  title: "Abonament confirmat",
-  description: "Confirmare abonament mentenanță ZeroBug.",
-  robots: { index: false, follow: false },
-};
+export const metadata = pageMetadata(PAGE_SEO.mentenantaSuccess);
 
 export default function MentenantaSuccessPage() {
   return (
@@ -18,9 +14,9 @@ export default function MentenantaSuccessPage() {
       <JsonLd
         data={[
           webPageSchema({
-            path: "/mentenanta/success",
-            name: "Abonament confirmat · ZeroBug",
-            description: "Confirmare plată și abonament mentenanță ZeroBug.",
+            path: PAGE_SEO.mentenantaSuccess.path,
+            name: `${PAGE_SEO.mentenantaSuccess.title} · ZeroBug`,
+            description: PAGE_SEO.mentenantaSuccess.description,
           }),
           breadcrumbSchema([
             { name: "Acasă", path: "/" },
