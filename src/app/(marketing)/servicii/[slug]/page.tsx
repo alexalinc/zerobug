@@ -112,47 +112,18 @@ export default async function ServiceCategoryPage({ params }: Props) {
             >
               Cere ofertă
             </a>
-            <a
-              href="#servicii-detaliate"
+            <Link
+              href="/portofoliu"
               className="inline-flex rounded-xl border border-white/15 px-5 py-2.5 text-sm text-zinc-200 hover:border-white/30"
             >
-              Vezi {spokes.length} servicii
-            </a>
+              Vezi portofoliu
+            </Link>
           </div>
         </div>
       </div>
 
       <div className="mx-auto max-w-6xl px-6 py-10 md:py-12">
-        <section id="servicii-detaliate" className="scroll-mt-24">
-          <h2 className="text-xl font-semibold tracking-tight md:text-2xl">
-            Servicii din {cat.title}
-          </h2>
-          <p className="mt-2 text-sm text-zinc-400">
-            Fiecare serviciu are o pagină dedicată — alege ce te interesează sau
-            cere o ofertă pe mai multe odată.
-          </p>
-          <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {spokes.map((s) => (
-              <Link
-                key={s.slug}
-                href={getServiceHref(s)}
-                className="group rounded-2xl border border-white/10 bg-zinc-900/40 p-4 transition-colors hover:border-[color:var(--brand)]/40"
-              >
-                <p className="text-sm font-medium text-white group-hover:text-[color:var(--brand)]">
-                  {s.name}
-                </p>
-                <p className="mt-2 line-clamp-2 text-xs text-zinc-500">
-                  {s.seoDescription}
-                </p>
-                <p className="mt-3 text-xs text-[color:var(--brand)]">
-                  Detalii & ofertă →
-                </p>
-              </Link>
-            ))}
-          </div>
-        </section>
-
-        <div id="oferta" className="mt-14 scroll-mt-24">
+        <div id="oferta" className="scroll-mt-24">
           <ServiceQuoteConfigurator
             categorySlug={cat.slug}
             categoryTitle={cat.title}

@@ -1,12 +1,9 @@
 import type { MetadataRoute } from "next";
-import {
-  getSiteUrl,
-  getSitemapEntries,
-  SITEMAP_REVALIDATE_SECONDS,
-} from "@/lib/seo";
+import { getSiteUrl, getSitemapEntries } from "@/lib/seo";
 
-/** Regenerated at least weekly (and on-demand from Admin → SEO). */
-export const revalidate = SITEMAP_REVALIDATE_SECONDS;
+/** Regenerated at least weekly (and on-demand from Admin → SEO).
+ * Must be a numeric literal — Next.js rejects imported segment config values. */
+export const revalidate = 604800; // 7 days
 
 export default function sitemap(): MetadataRoute.Sitemap {
   const base = getSiteUrl();
