@@ -1,14 +1,16 @@
-import { NextResponse } from "next/server";
-import { isAdminAuthenticated } from "@/lib/admin-auth";
+import { NextRequest, NextResponse } from "next/server";
+import { isAdminAuthenticatedRequest } from "@/lib/admin-auth";
 import {
   buildGoogleAuthUrl,
   createOAuthState,
   getGoogleOAuthConfig,
 } from "@/lib/google-ads-oauth";
 
-export async function GET() {
-  if (!(await isAdminAuthenticated())) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+export async function GET(req: NextRequest) {
+  if (!(await isAdminAuthenticatedRequest(req))) {
+    const login = new URL("/admin/login", req.nextUrl.origin);
+    login.searchParams.set("next", "/api/admin/google-ads/connect");
+    return NextResponse.redirect(login);
   }
 
   const { clientId } = getGoogleOAuthConfig();

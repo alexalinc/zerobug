@@ -3,7 +3,7 @@
 import React, { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   motion,
   AnimatePresence,
@@ -31,8 +31,17 @@ function LoginInput({
   );
 }
 
+function safeNextPath(raw: string | null): string {
+  if (!raw) return "/admin";
+  if (!raw.startsWith("/")) return "/admin";
+  if (raw.startsWith("//")) return "/admin";
+  if (raw.startsWith("/admin") || raw.startsWith("/api/admin")) return raw;
+  return "/admin";
+}
+
 export function AdminSignInCard() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [showPassword, setShowPassword] = useState(false);
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -79,7 +88,7 @@ export function AdminSignInCard() {
         setError(data.error || "Autentificare eșuată");
         return;
       }
-      router.push("/admin");
+      router.push(safeNextPath(searchParams.get("next")));
       router.refresh();
     } catch {
       setError("Eroare de rețea. Încearcă din nou.");

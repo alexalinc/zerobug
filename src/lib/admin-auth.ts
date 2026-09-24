@@ -1,6 +1,7 @@
 import { SignJWT, jwtVerify } from "jose";
 import { cookies } from "next/headers";
 import { timingSafeEqual } from "crypto";
+import type { NextRequest } from "next/server";
 
 const COOKIE = "zb_admin_session";
 
@@ -10,6 +11,16 @@ function getSecret() {
     process.env.ADMIN_PASSWORD ||
     "zerobug-dev-secret-change-me";
   return new TextEncoder().encode(secret);
+}
+
+async function verifySessionToken(token: string | undefined): Promise<boolean> {
+  if (!token) return false;
+  try {
+    await jwtVerify(token, getSecret());
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 function safeEqual(a: string, b: string) {
@@ -47,14 +58,12 @@ export async function destroyAdminSession() {
 
 export async function isAdminAuthenticated() {
   const jar = await cookies();
-  const token = jar.get(COOKIE)?.value;
-  if (!token) return false;
-  try {
-    await jwtVerify(token, getSecret());
-    return true;
-  } catch {
-    return false;
-  }
+  return verifySessionToken(jar.get(COOKIE)?.value);
+}
+
+/** Prefer this in Route Handlers — reads cookies from the incoming request. */
+export async function isAdminAuthenticatedRequest(req: NextRequest) {
+  return verifySessionToken(req.cookies.get(COOKIE)?.value);
 }
 
 export function getAdminCredentials() {
@@ -151,3 +160,5 @@ export function recordLoginFailure(ip: string) {
 export function clearLoginRateLimit(ip: string) {
   loginAttempts.delete(ip);
 }
+
+export { COOKIE as ADMIN_SESSION_COOKIE };
