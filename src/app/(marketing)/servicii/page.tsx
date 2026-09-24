@@ -44,6 +44,20 @@ export default function ServiciiPage() {
             className="mt-3 max-w-2xl text-base leading-relaxed text-zinc-400 md:text-lg"
             duration={0.3}
           />
+          <div className="mt-6 flex flex-wrap gap-3">
+            <a
+              href="/servicii/creare-magazin-online"
+              className="inline-flex rounded-xl border border-white/15 px-4 py-2 text-sm text-zinc-200 hover:border-white/30"
+            >
+              Creare magazin online
+            </a>
+            <a
+              href="/servicii/oras"
+              className="inline-flex rounded-xl border border-white/15 px-4 py-2 text-sm text-zinc-200 hover:border-white/30"
+            >
+              Servicii pe oraș
+            </a>
+          </div>
         </div>
       </div>
 

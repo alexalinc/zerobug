@@ -21,6 +21,7 @@ ZeroBug construiește și întreține produse digitale pentru companii — de la
 
 - Home: {{SITE_URL}}/
 - Servicii: {{SITE_URL}}/servicii
+- Servicii pe oraș: {{SITE_URL}}/servicii/oras
 - Mentenanță: {{SITE_URL}}/mentenanta
 - Portofoliu: {{SITE_URL}}/portofoliu
 - Despre: {{SITE_URL}}/despre
@@ -30,9 +31,17 @@ ZeroBug construiește și întreține produse digitale pentru companii — de la
 
 {{SERVICE_LINKS}}
 
+## Intent / money keywords
+
+{{INTENT_LINKS}}
+
 ## Exemple pagini serviciu
 
 {{SERVICE_SPOKE_LINKS}}
+
+## Orașe
+
+{{CITY_LINKS}}
 
 ## Contact
 

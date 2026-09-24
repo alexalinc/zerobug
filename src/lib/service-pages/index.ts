@@ -1,5 +1,9 @@
 import { SERVICE_CATEGORIES } from "@/lib/services";
 import { WEB_DEVELOPMENT_PAGES } from "./web-development";
+import { ECOMMERCE_PAGES } from "./e-commerce";
+import { WORDPRESS_PAGES } from "./wordpress-woocommerce";
+import { buildAdsPages } from "./google-ads-analytics";
+import { buildApiPages } from "./api-integrari";
 import { buildCategoryServicePages } from "./generate";
 import type { ServicePage } from "./types";
 import { servicePath } from "./types";
@@ -7,17 +11,26 @@ import { servicePath } from "./types";
 export type { ServicePage, ServiceFaq, ServiceProcessStep } from "./types";
 export { servicePath, slugifyServiceName } from "./types";
 
-const OTHER_CATEGORY_SLUGS = SERVICE_CATEGORIES.map((c) => c.slug).filter(
-  (s) => s !== "web-development",
+const GENERATED_ONLY = SERVICE_CATEGORIES.map((c) => c.slug).filter(
+  (s) =>
+    s !== "web-development" &&
+    s !== "e-commerce" &&
+    s !== "wordpress-woocommerce" &&
+    s !== "google-ads-analytics" &&
+    s !== "api-integrari",
 );
 
-const GENERATED_PAGES: ServicePage[] = OTHER_CATEGORY_SLUGS.flatMap(
+const GENERATED_PAGES: ServicePage[] = GENERATED_ONLY.flatMap(
   buildCategoryServicePages,
 );
 
-/** All spoke service pages (wave-1 web + generated for other categories). */
+/** All spoke service pages */
 export const ALL_SERVICE_PAGES: ServicePage[] = [
   ...WEB_DEVELOPMENT_PAGES,
+  ...ECOMMERCE_PAGES,
+  ...WORDPRESS_PAGES,
+  ...buildAdsPages(),
+  ...buildApiPages(),
   ...GENERATED_PAGES,
 ];
 

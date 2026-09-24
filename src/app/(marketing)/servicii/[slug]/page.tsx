@@ -6,6 +6,8 @@ import {
   getServiceHref,
   getServicePagesByCategory,
 } from "@/lib/service-pages";
+import { INTENT_PAGES, getIntentPage } from "@/lib/intent-pages";
+import { IntentLandingTemplate } from "@/components/intent-landing-template";
 import { ServiceQuoteConfigurator } from "@/components/service-quote-configurator";
 import { TextGenerateEffect } from "@/components/ui/text-generate-effect";
 import {
@@ -15,16 +17,30 @@ import {
   serviceSchema,
   webPageSchema,
 } from "@/components/json-ld";
-import { serviceCategoryMetadata } from "@/lib/page-seo";
+import { pageMetadata, serviceCategoryMetadata } from "@/lib/page-seo";
+import { CITIES, cityHubPath } from "@/lib/cities";
 
 type Props = { params: Promise<{ slug: string }> };
 
 export async function generateStaticParams() {
-  return SERVICE_CATEGORIES.map((c) => ({ slug: c.slug }));
+  return [
+    ...SERVICE_CATEGORIES.map((c) => ({ slug: c.slug })),
+    ...INTENT_PAGES.map((p) => ({ slug: p.slug })),
+  ];
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
+  const intent = getIntentPage(slug);
+  if (intent) {
+    return pageMetadata({
+      title: intent.seoTitle,
+      description: intent.seoDescription,
+      path: `/servicii/${intent.slug}`,
+      image: intent.image,
+      imageAlt: intent.name,
+    });
+  }
   const cat = getCategoryBySlug(slug);
   if (!cat) {
     return { title: "Serviciu" };
@@ -36,14 +52,21 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   });
 }
 
-export default async function ServiceCategoryPage({ params }: Props) {
+export default async function ServiceCategoryOrIntentPage({ params }: Props) {
   const { slug } = await params;
+
+  const intent = getIntentPage(slug);
+  if (intent) {
+    return <IntentLandingTemplate page={intent} />;
+  }
+
   const cat = getCategoryBySlug(slug);
   if (!cat) notFound();
 
   const others = SERVICE_CATEGORIES.filter((c) => c.slug !== slug);
   const path = `/servicii/${cat.slug}`;
   const spokes = getServicePagesByCategory(cat.slug);
+  const sampleCities = CITIES.slice(0, 6);
 
   return (
     <main className="bg-zinc-950 text-white">
@@ -130,6 +153,29 @@ export default async function ServiceCategoryPage({ params }: Props) {
             accent={cat.accent}
             services={cat.services}
           />
+        </div>
+
+        <div className="mt-12 border-t border-white/10 pt-8">
+          <h3 className="text-sm font-medium text-zinc-400">
+            Disponibil și pe oraș
+          </h3>
+          <div className="mt-4 flex flex-wrap gap-2">
+            {sampleCities.map((c) => (
+              <Link
+                key={c.slug}
+                href={cityHubPath(c.slug)}
+                className="rounded-full border border-white/10 px-3.5 py-1.5 text-sm text-zinc-300 hover:border-[color:var(--brand)]/40 hover:text-white"
+              >
+                {c.name}
+              </Link>
+            ))}
+            <Link
+              href="/servicii/oras"
+              className="rounded-full border border-white/10 px-3.5 py-1.5 text-sm text-[color:var(--brand)]"
+            >
+              Toate →
+            </Link>
+          </div>
         </div>
 
         {others.length > 0 && (

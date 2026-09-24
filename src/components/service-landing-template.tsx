@@ -7,6 +7,8 @@ import {
   getServiceHref,
   servicePath,
 } from "@/lib/service-pages";
+import { CITIES, cityHubPath, cityServicePath } from "@/lib/cities";
+import { getLocalKeyword } from "@/lib/local-pages";
 import { ServiceQuoteConfigurator } from "@/components/service-quote-configurator";
 import { TextGenerateEffect } from "@/components/ui/text-generate-effect";
 import {
@@ -22,12 +24,36 @@ type Props = {
   category: ServiceCategory;
 };
 
+/** Map national spokes to local money-keyword slugs when names overlap */
+function localKeywordForPage(page: ServicePage): string | undefined {
+  const bySlug = getLocalKeyword(page.slug);
+  if (bySlug) return bySlug.slug;
+
+  const aliases: Record<string, string> = {
+    "creare-magazin-woocommerce": "creare-magazin-woocommerce",
+    "creare-magazin-online-woocommerce": "creare-magazin-woocommerce",
+    "dezvoltare-shopify": "creare-magazin-shopify",
+    "creare-website-de-prezentare": "creare-website",
+    "website-wordpress": "creare-website-wordpress",
+    "redesign-website": "redesign-website",
+    "wordpress-maintenance": "mentenanta-wordpress",
+    "optimizare-magazin-online": "optimizare-magazin-online",
+    "integrare-smartbill": "integrare-smartbill",
+    "google-ads-conversion-tracking": "google-ads-tracking",
+    "migrare-shopify-woocommerce": "migrare-magazin-online",
+    "aplicatii-flutter-cross-platform": "aplicatie-mobila",
+  };
+  return aliases[page.slug];
+}
+
 export function ServiceLandingTemplate({ page, category }: Props) {
   const path = servicePath(page.categorySlug, page.slug);
   const related = getRelatedServicePages(page, 4);
   const image = page.image ?? "/images/logozerobug.png";
   const quoteHref = `#oferta`;
   const contactHref = `/contact?categorie=${encodeURIComponent(page.categorySlug)}&serviciu=${encodeURIComponent(page.name)}`;
+  const localKw = localKeywordForPage(page);
+  const citySamples = CITIES.slice(0, 6);
 
   return (
     <main className="bg-zinc-950 text-white">
@@ -233,6 +259,36 @@ export function ServiceLandingTemplate({ page, category }: Props) {
             </Link>
           </section>
         ) : null}
+
+        <section>
+          <h2 className="text-xl font-semibold tracking-tight md:text-2xl">
+            Același serviciu pe oraș
+          </h2>
+          <p className="mt-2 text-sm text-zinc-400">
+            Lucrăm remote în toată țara — vezi și paginile locale.
+          </p>
+          <div className="mt-4 flex flex-wrap gap-2">
+            {citySamples.map((c) => (
+              <Link
+                key={c.slug}
+                href={
+                  localKw
+                    ? cityServicePath(c.slug, localKw)
+                    : cityHubPath(c.slug)
+                }
+                className="rounded-full border border-white/10 px-3.5 py-1.5 text-sm text-zinc-300 hover:border-[color:var(--brand)]/40 hover:text-white"
+              >
+                {c.name}
+              </Link>
+            ))}
+            <Link
+              href="/servicii/oras"
+              className="rounded-full border border-white/10 px-3.5 py-1.5 text-sm text-[color:var(--brand)]"
+            >
+              Toate orașele →
+            </Link>
+          </div>
+        </section>
 
         {page.showMaintenanceCta ? (
           <section className="rounded-2xl border border-white/10 bg-[color:var(--brand)]/5 p-5 md:p-6">

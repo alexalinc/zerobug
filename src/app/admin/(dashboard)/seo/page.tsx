@@ -75,11 +75,21 @@ export default function SeoAdminPage() {
     setMessage(null);
     try {
       const res = await fetch("/api/admin/seo/revalidate", { method: "POST" });
-      const data = (await res.json()) as { ok?: boolean; error?: string };
+      const data = (await res.json()) as {
+        ok?: boolean;
+        error?: string;
+        urlCount?: number;
+        robotsTxt?: string;
+        llmsTxt?: string;
+      };
       if (!res.ok || !data.ok) {
         throw new Error(data.error || "Regenerarea a eșuat");
       }
-      setMessage("Sitemap regenerat (cache invalidat).");
+      if (data.robotsTxt) setRobotsTxt(data.robotsTxt);
+      if (data.llmsTxt) setLlmsTxt(data.llmsTxt);
+      setMessage(
+        `Regenerat: sitemap (${data.urlCount ?? entries.length} URL-uri), robots.txt și llms.txt — din catalogul curent al site-ului.`,
+      );
     } catch (err) {
       setError(err instanceof Error ? err.message : "Regenerarea a eșuat");
     } finally {
@@ -106,11 +116,14 @@ export default function SeoAdminPage() {
           variant="outline"
           disabled={regenerating}
           onClick={() => void onRegenerate()}
+          title="Resetează robots + llms la template-ul din cod și invalidează cache-ul sitemap/robots/llms"
         >
           <RefreshCw
             className={`mr-2 h-4 w-4 ${regenerating ? "animate-spin" : ""}`}
           />
-          {regenerating ? "Se regenerează…" : "Regenerează sitemap"}
+          {regenerating
+            ? "Se regenerează…"
+            : "Regenerează tot (sitemap + robots + llms)"}
         </Button>
       </div>
 
@@ -148,8 +161,10 @@ export default function SeoAdminPage() {
           <div>
             <p className="text-sm font-medium text-white">Sitemap</p>
             <p className="mt-1 text-xs text-zinc-500">
-              Ultima regenerare: {lastGen}. Se regenerează automat în fiecare
-              luni 03:00 UTC (Vercel Cron) și la fiecare 7 zile prin cache.
+              Ultima regenerare: {lastGen}. Butonul de mai sus rescrie robots.txt
+              și llms.txt din catalogul live (categorii, intent, orașe, spoke-uri)
+              și invalidează cache-ul pentru sitemap / robots / llms. Cron: luni
+              03:00 UTC.
             </p>
           </div>
         </div>
@@ -189,7 +204,8 @@ export default function SeoAdminPage() {
             <Label>llms.txt</Label>
             <p className="text-[11px] text-zinc-500">
               Placeholders: {"{{SITE_URL}}"}, {"{{SERVICE_LINKS}}"},{" "}
-              {"{{SERVICE_SPOKE_LINKS}}"}.
+              {"{{SERVICE_SPOKE_LINKS}}"}, {"{{INTENT_LINKS}}"},{" "}
+              {"{{CITY_LINKS}}"}.
             </p>
             <textarea
               value={llmsTxt}

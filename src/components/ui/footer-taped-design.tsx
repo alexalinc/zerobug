@@ -51,10 +51,12 @@ const NAV_LINKS: FooterLink[] = [
 const SERVICE_LINKS: FooterLink[] = [
   { label: "Web Development", href: "/servicii/web-development" },
   { label: "E-commerce", href: "/servicii/e-commerce" },
+  { label: "Creare magazin online", href: "/servicii/creare-magazin-online" },
   { label: "API & Integrări", href: "/servicii/api-integrari" },
   { label: "Aplicații Mobile", href: "/servicii/aplicatii-mobile" },
   { label: "Google Ads", href: "/servicii/google-ads-analytics" },
   { label: "WordPress", href: "/servicii/wordpress-woocommerce" },
+  { label: "Servicii pe oraș", href: "/servicii/oras" },
 ];
 
 const FUTURE_LINKS: FooterLink[] = [

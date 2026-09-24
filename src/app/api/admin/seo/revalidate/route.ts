@@ -3,32 +3,58 @@ import { revalidatePath } from "next/cache";
 import { ConvexHttpClient } from "convex/browser";
 import { api } from "@convex/_generated/api";
 import { isAdminAuthenticated } from "@/lib/admin-auth";
+import {
+  DEFAULT_LLMS_TXT,
+  DEFAULT_ROBOTS_TXT,
+  getSitemapEntries,
+  getSiteUrl,
+  renderLlmsTxt,
+  renderRobotsTxt,
+} from "@/lib/seo";
 
-async function regenerateSitemap() {
+async function regenerateAllSeo() {
+  const url = process.env.NEXT_PUBLIC_CONVEX_URL;
+  if (!url) {
+    throw new Error("NEXT_PUBLIC_CONVEX_URL lipsește");
+  }
+
+  const client = new ConvexHttpClient(url);
+
+  // Reset templates to current site defaults (categories, intents, cities, spokes)
+  await client.mutation(api.seo.upsert, {
+    robotsTxt: DEFAULT_ROBOTS_TXT,
+    llmsTxt: DEFAULT_LLMS_TXT,
+  });
+  await client.mutation(api.seo.markSitemapGenerated, {});
+
   revalidatePath("/sitemap.xml");
   revalidatePath("/robots.txt");
   revalidatePath("/llms.txt");
+  revalidatePath("/servicii");
+  revalidatePath("/servicii/oras");
 
-  const url = process.env.NEXT_PUBLIC_CONVEX_URL;
-  if (url) {
-    const client = new ConvexHttpClient(url);
-    await client.mutation(api.seo.markSitemapGenerated, {});
-  }
+  const siteUrl = getSiteUrl();
+  const entries = getSitemapEntries();
 
   return {
     ok: true as const,
     regeneratedAt: Date.now(),
+    urlCount: entries.length,
+    robotsTxt: DEFAULT_ROBOTS_TXT,
+    llmsTxt: DEFAULT_LLMS_TXT,
+    robotsPreview: renderRobotsTxt(DEFAULT_ROBOTS_TXT, siteUrl),
+    llmsPreview: renderLlmsTxt(DEFAULT_LLMS_TXT, siteUrl),
   };
 }
 
-/** Manual regenerate from Admin → SEO */
+/** Manual regenerate from Admin → SEO: sitemap + robots + llms from live site */
 export async function POST(req: NextRequest) {
   if (!(await isAdminAuthenticated())) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   try {
-    const result = await regenerateSitemap();
+    const result = await regenerateAllSeo();
     return NextResponse.json(result);
   } catch (error) {
     return NextResponse.json(
@@ -52,7 +78,7 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    const result = await regenerateSitemap();
+    const result = await regenerateAllSeo();
     return NextResponse.json(result);
   } catch (error) {
     return NextResponse.json(

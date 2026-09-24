@@ -46,10 +46,12 @@ function messageFromSearchParams(): string {
   const params = new URLSearchParams(window.location.search);
   const serviciu = params.get("serviciu")?.trim();
   const categorie = params.get("categorie")?.trim();
-  if (!serviciu && !categorie) return "";
+  const oras = params.get("oras")?.trim();
+  if (!serviciu && !categorie && !oras) return "";
   const parts = [
     serviciu ? `Serviciu: ${serviciu}` : null,
     categorie ? `Categorie: ${categorie}` : null,
+    oras ? `Oraș: ${oras}` : null,
     "",
     "Detalii proiect:",
   ].filter((p): p is string => p !== null);

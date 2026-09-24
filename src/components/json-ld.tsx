@@ -113,12 +113,14 @@ export function serviceSchema({
   path,
   serviceType,
   image,
+  areaServed,
 }: {
   name: string;
   description: string;
   path: string;
   serviceType?: string;
   image?: string;
+  areaServed?: { "@type": string; name: string };
 }) {
   const url = `${SITE_URL}${path}`;
   return {
@@ -129,7 +131,7 @@ export function serviceSchema({
     url,
     serviceType: serviceType ?? name,
     provider: { "@id": `${SITE_URL}/#organization` },
-    areaServed: {
+    areaServed: areaServed ?? {
       "@type": "Country",
       name: "Romania",
     },
