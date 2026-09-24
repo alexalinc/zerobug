@@ -8,8 +8,8 @@ import { internal } from "./_generated/api";
 const DATA_MANAGER_INGEST =
   "https://datamanager.googleapis.com/v1/events:ingest";
 const TOKEN_URL = "https://oauth2.googleapis.com/token";
-/** Google Ads API version for listing resources */
-const ADS_API = "https://googleads.googleapis.com/v19";
+/** Google Ads API version for listing resources (v19 sunset Feb 2026) */
+const ADS_API = "https://googleads.googleapis.com/v25";
 
 /** Fixed conversion value for every lead (contact / quote / maintenance). */
 export const LEAD_CONVERSION_VALUE_RON = 20;
@@ -153,10 +153,10 @@ async function googleAdsSearch(
   loginCustomerId: string,
   query: string,
 ): Promise<unknown[]> {
-  const developerToken = process.env.GOOGLE_ADS_DEVELOPER_TOKEN;
+  const developerToken = process.env.GOOGLE_ADS_DEVELOPER_TOKEN?.trim();
   if (!developerToken) {
     throw new Error(
-      "GOOGLE_ADS_DEVELOPER_TOKEN lipsește în Convex env (API Center Google Ads)",
+      "GOOGLE_ADS_DEVELOPER_TOKEN lipsește în Convex env (API Center Google Ads). Verifică Deployment = Production în Dashboard.",
     );
   }
 
@@ -186,10 +186,17 @@ async function googleAdsSearch(
   }
 
   if (!res.ok) {
+    const apiMsg = json.error?.message || "";
+    if (/insufficient.*scope|ACCESS_TOKEN_SCOPE_INSUFFICIENT/i.test(apiMsg + text)) {
+      throw new Error(
+        "Lipsește permisiunea Google Ads (scope adwords). Deconectează contul, apoi reconectează și acceptă toate permisiunile.",
+      );
+    }
+    const snippet = text.trimStart().startsWith("<!")
+      ? `Google Ads API ${res.status} (endpoint invalid / versiune scoasă din uz). Verifică customer ID.`
+      : text.slice(0, 400);
     throw new Error(
-      json.error?.message ||
-        text.slice(0, 400) ||
-        `Google Ads search failed (${res.status})`,
+      apiMsg || snippet || `Google Ads search failed (${res.status})`,
     );
   }
 

@@ -155,6 +155,22 @@ function SetariPageInner() {
     listConversions,
   ]);
 
+  // Auto-load campaigns + conversion goals once connected + Customer ID set
+  useEffect(() => {
+    if (!googleConnection?.connected) return;
+    const customerId = gadsForm.customerId.trim();
+    if (customerId.length < 6) return;
+    const t = window.setTimeout(() => {
+      void refreshAdsLists();
+    }, 600);
+    return () => window.clearTimeout(t);
+  }, [
+    googleConnection?.connected,
+    gadsForm.customerId,
+    gadsForm.loginCustomerId,
+    refreshAdsLists,
+  ]);
+
   useEffect(() => {
     const google = searchParams.get("google");
     if (google === "connected") {
@@ -423,6 +439,12 @@ function SetariPageInner() {
                   </span>
                 )}
               </p>
+              <a
+                href="/api/admin/google-ads/connect"
+                className="inline-flex h-8 items-center justify-center rounded-lg border border-zinc-700 bg-transparent px-2.5 text-sm font-medium text-zinc-200 hover:bg-zinc-800"
+              >
+                Reconectează
+              </a>
               <Button
                 type="button"
                 variant="outline"

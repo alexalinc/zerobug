@@ -53,8 +53,9 @@ export function buildGoogleAuthUrl(state: string): string {
     response_type: "code",
     scope: OAUTH_SCOPE,
     access_type: "offline",
+    // Force full consent so a new refresh token includes adwords + datamanager
     prompt: "consent",
-    include_granted_scopes: "true",
+    include_granted_scopes: "false",
     state,
   });
   return `${AUTH_URL}?${params.toString()}`;
