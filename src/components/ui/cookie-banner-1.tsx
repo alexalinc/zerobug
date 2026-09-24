@@ -37,7 +37,7 @@ const CookiePanel = (props: CookiePanelProps) => {
   const {
     title = "Acest site folosește cookie-uri",
     message =
-      "Folosim cookie-uri esențiale pentru funcționare. Cookie-urile de marketing (gclid / Ads) și datele din formulare pentru Enhanced Conversions se folosesc doar dacă accepți.",
+      "Folosim cookie-uri pentru ca site-ul să funcționeze. Cookie-urile de marketing le folosim doar dacă ești de acord, ca să măsurăm eficiența reclamelor.",
     acceptText = "Accept toate",
     customizeText = "Personalizează",
     icon = "cookie",
@@ -282,8 +282,8 @@ const CookiePanel = (props: CookiePanelProps) => {
                 field="analytics"
               />
               <PrefRow
-                title="Marketing / Ads"
-                desc="gclid, gbraid, wbraid și Enhanced Conversions (email/telefon hash) către Google Ads."
+                title="Marketing"
+                desc="Ne ajută să măsurăm dacă reclamele aduc vizite și cereri pe site."
                 field="marketing"
               />
 
