@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { getServiceVisual } from "@/lib/service-icons";
 import { cn } from "@/lib/utils";
+import { getAdsClickIdsForLead } from "@/lib/gclid";
 
 const BUDGET_MIN = 500;
 const BUDGET_MAX = 25000;
@@ -127,6 +128,7 @@ export function ServiceQuoteConfigurator({
         serviceCategory: categorySlug,
         serviceName: selected.join(", "),
         budget,
+        ...getAdsClickIdsForLead(),
       });
       setStatus("ok");
       setSelected([]);

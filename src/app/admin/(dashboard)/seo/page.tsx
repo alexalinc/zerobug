@@ -102,7 +102,7 @@ export default function SeoAdminPage() {
           <h1 className="text-3xl font-semibold tracking-tight">SEO</h1>
           <p className="mt-2 text-sm text-zinc-400">
             Sitemap (regenerare săptămânală), robots.txt și llms.txt pentru
-            crawler-e și AI.
+            crawlere.
           </p>
         </div>
         <Button
@@ -146,7 +146,7 @@ export default function SeoAdminPage() {
         <SeoLinkCard
           title="llms.txt"
           href={`${siteUrl}/llms.txt`}
-          hint="Pentru agenți AI"
+          hint="Pentru crawlere / LLM"
         />
       </div>
 

@@ -130,11 +130,40 @@ export default defineSchema({
       v.literal("won"),
       v.literal("lost"),
     ),
+    /** Google Ads click IDs captured from landing URL / cookie */
+    gclid: v.optional(v.string()),
+    gbraid: v.optional(v.string()),
+    wbraid: v.optional(v.string()),
+    googleAdsStatus: v.optional(
+      v.union(
+        v.literal("pending"),
+        v.literal("sent"),
+        v.literal("skipped"),
+        v.literal("failed"),
+      ),
+    ),
+    googleAdsSyncedAt: v.optional(v.number()),
+    googleAdsError: v.optional(v.string()),
+    googleAdsRequestId: v.optional(v.string()),
     createdAt: v.number(),
   })
     .index("by_status", ["status"])
     .index("by_type", ["type"])
     .index("by_created", ["createdAt"]),
+
+  /** OAuth + destination for Google Ads Data Manager conversion uploads */
+  googleAdsSettings: defineTable({
+    key: v.literal("main"),
+    refreshToken: v.string(),
+    accessToken: v.optional(v.string()),
+    tokenExpiresAt: v.optional(v.number()),
+    email: v.optional(v.string()),
+    customerId: v.optional(v.string()),
+    loginCustomerId: v.optional(v.string()),
+    conversionActionId: v.optional(v.string()),
+    connectedAt: v.number(),
+    enabled: v.boolean(),
+  }).index("by_key", ["key"]),
 
   settings: defineTable({
     key: v.literal("issuer"),

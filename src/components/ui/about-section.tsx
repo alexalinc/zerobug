@@ -212,9 +212,8 @@ export default function AboutSection3() {
               >
                 <p className="text-justify leading-relaxed">
                   ZeroBug este brandul de servicii IT al SC AXP GLOBAL RETAIL
-                  SRL. Construim website-uri, magazine, integrări API, aplicații
-                  mobile și — în 2026 — punem accent pe AI (OpenAI & Claude) și
-                  automatizări.
+                  SRL. Construim website-uri, magazine, integrări API, batch-uri
+                  de date, aplicații mobile și automatizări operaționale.
                 </p>
               </TimelineContent>
               <TimelineContent
@@ -262,7 +261,7 @@ export default function AboutSection3() {
                 customVariants={revealVariants}
                 className="mb-8 text-sm text-gray-600"
               >
-                Servicii IT | AI & Automatizări | Mentenanță
+                Servicii IT | API & Batch | Mentenanță
               </TimelineContent>
 
               <TimelineContent

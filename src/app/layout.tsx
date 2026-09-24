@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { ConvexClientProvider } from "@/components/convex-client-provider";
+import { GclidCapture } from "@/components/gclid-capture";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -7,11 +8,11 @@ export const metadata: Metadata = {
     process.env.NEXT_PUBLIC_SITE_URL || "https://zerobug.ro",
   ),
   title: {
-    default: "ZeroBug — Servicii IT, AI & Mentenanță",
+    default: "ZeroBug — Servicii IT & Mentenanță",
     template: "%s · ZeroBug",
   },
   description:
-    "Agenție IT din România: dezvoltare web, e-commerce, API, mobile, AI (OpenAI & Claude), Google Ads tracking și mentenanță WordPress / WooCommerce.",
+    "Agenție IT din România: dezvoltare web, e-commerce, API & batch-uri, mobile, Google Ads tracking și mentenanță WordPress / WooCommerce.",
   openGraph: {
     type: "website",
     locale: "ro_RO",
@@ -44,7 +45,10 @@ export default function RootLayout({
   return (
     <html lang="ro" className="h-full antialiased dark">
       <body className="min-h-full flex flex-col bg-zinc-950 text-zinc-100 font-sans">
-        <ConvexClientProvider>{children}</ConvexClientProvider>
+        <ConvexClientProvider>
+          <GclidCapture />
+          {children}
+        </ConvexClientProvider>
       </body>
     </html>
   );

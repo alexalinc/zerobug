@@ -21,11 +21,31 @@ export const create = mutation({
     addons: v.optional(v.array(v.string())),
     budget: v.optional(v.number()),
     quoteDetails: v.optional(v.string()),
+    gclid: v.optional(v.string()),
+    gbraid: v.optional(v.string()),
+    wbraid: v.optional(v.string()),
   },
   returns: v.id("leads"),
   handler: async (ctx, args) => {
+    const { gclid, gbraid, wbraid, ...rest } = args;
+
+    const settings = await ctx.db
+      .query("googleAdsSettings")
+      .withIndex("by_key", (q) => q.eq("key", "main"))
+      .unique();
+    const syncReady = Boolean(
+      settings?.enabled &&
+        settings.refreshToken &&
+        settings.customerId &&
+        settings.conversionActionId,
+    );
+
     const id = await ctx.db.insert("leads", {
-      ...args,
+      ...rest,
+      gclid: gclid || undefined,
+      gbraid: gbraid || undefined,
+      wbraid: wbraid || undefined,
+      googleAdsStatus: syncReady ? "pending" : undefined,
       status: "new",
       createdAt: Date.now(),
     });
@@ -47,6 +67,14 @@ export const create = mutation({
         budget: args.budget,
         quoteDetails: args.quoteDetails,
       });
+    }
+
+    if (syncReady) {
+      await ctx.scheduler.runAfter(
+        0,
+        internal.googleAdsActions.uploadLeadConversion,
+        { leadId: id },
+      );
     }
 
     return id;

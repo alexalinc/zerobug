@@ -16,7 +16,7 @@ const TESTIMONIALS = {
   },
   leftBottom: {
     quote:
-      "Chatbot-ul AI pe care l-au conectat la catalog ne-a redus timpul pe support cu aproape jumătate.",
+      "Integrarea cu curierul și sync-ul de stocuri ne-a redus timpul pe operațiuni cu aproape jumătate.",
     name: "Elena",
     role: "operațiuni · e-commerce",
     image:
@@ -49,7 +49,7 @@ const TESTIMONIALS = {
     },
   ],
   rightTop: {
-    quote: "Partenerul tehnic pe care îl căutam: web + ads + AI (OpenAI & Claude), într-un singur loc.",
+    quote: "Partenerul tehnic pe care îl căutam: web + ads + API, într-un singur loc.",
     name: "Cristina",
     role: "studio · digital",
     image:
@@ -99,7 +99,7 @@ function ClientFeedback() {
             duration={0.35}
           />
           <TextGenerateEffect
-            words="Cum văd clienții ZeroBug colaborarea — de la e-commerce și tracking, la AI și mentenanță."
+            words="Cum văd clienții ZeroBug colaborarea — de la e-commerce și tracking, la API și mentenanță."
             className="mx-auto text-zinc-400 text-base md:text-lg"
             duration={0.35}
           />

@@ -24,7 +24,7 @@ export function pageMetadata({
   description,
   path,
   image = DEFAULT_OG_IMAGE,
-  imageAlt = "ZeroBug — Servicii IT, AI & Mentenanță",
+  imageAlt = "ZeroBug — Servicii IT & Mentenanță",
   noIndex = false,
   type = "website",
 }: PageSeoInput): Metadata {
@@ -73,9 +73,9 @@ export function pageMetadata({
 /** Central SEO copy for marketing routes */
 export const PAGE_SEO = {
   home: {
-    title: "ZeroBug — Servicii IT, AI & Mentenanță",
+    title: "ZeroBug — Servicii IT & Mentenanță",
     description:
-      "Agenție IT din România: dezvoltare web, e-commerce, API, mobile, AI (OpenAI & Claude), Google Ads tracking și mentenanță WordPress / WooCommerce.",
+      "Agenție IT din România: dezvoltare web, e-commerce, API & batch-uri, mobile, Google Ads tracking și mentenanță WordPress / WooCommerce.",
     path: "/",
     image: DEFAULT_OG_IMAGE,
   },
@@ -112,14 +112,14 @@ export const PAGE_SEO = {
   despre: {
     title: "Despre ZeroBug — agenție IT România",
     description:
-      "Cine suntem: dezvoltare web, e-commerce, API, AI și mentenanță pentru business-uri din România. Livrabile în producție, tracking inclus, abonamente predictibile.",
+      "Cine suntem: dezvoltare web, e-commerce, API & batch-uri și mentenanță pentru business-uri din România. Livrabile în producție, tracking inclus, abonamente predictibile.",
     path: "/despre",
     image: DEFAULT_OG_IMAGE,
   },
   contact: {
-    title: "Contact — ofertă web, AI & mentenanță",
+    title: "Contact — ofertă web, API & mentenanță",
     description:
-      "Scrie-ne despre proiectul tău. ZeroBug răspunde de obicei în aceeași zi lucrătoare pentru web, e-commerce, AI și mentenanță website.",
+      "Scrie-ne despre proiectul tău. ZeroBug răspunde de obicei în aceeași zi lucrătoare pentru web, e-commerce, API și mentenanță website.",
     path: "/contact",
     image: DEFAULT_OG_IMAGE,
   },

@@ -61,16 +61,12 @@ const TECH: {
     span: "md:col-span-1",
   },
   {
-    name: "OpenAI & Claude",
-    blurb: "Chatbot-uri, agenți & automatizări",
-    logo: "https://cdn.jsdelivr.net/npm/simple-icons@v13/icons/openai.svg",
-    logos: [
-      "https://cdn.jsdelivr.net/npm/simple-icons@v13/icons/openai.svg",
-      "https://cdn.jsdelivr.net/npm/simple-icons@v13/icons/anthropic.svg",
-    ],
+    name: "API & Batch",
+    blurb: "Integrări, sync și job-uri pe volume",
+    logo: "https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/nodejs/nodejs-original.svg",
     image:
-      "https://images.unsplash.com/photo-1677442136019-21780ecad995?auto=format&fit=crop&w=1200&q=80",
-    href: "/servicii",
+      "https://images.unsplash.com/photo-1558494949-ef010cbdcc31?auto=format&fit=crop&w=1200&q=80",
+    href: "/servicii/api-integrari",
     span: "md:col-span-2",
   },
   {
@@ -150,7 +146,7 @@ export function TechBentoGrid() {
           duration={0.35}
         />
         <TextGenerateEffect
-          words="Construim pe tehnologii mature — React, Next.js, Stripe, WordPress, Flutter, Shopify, OpenAI, Claude și Google Ads — cu mentenanță și tracking în discuție."
+          words="Construim pe tehnologii mature — React, Next.js, Stripe, WordPress, Flutter, Shopify, API & batch-uri și Google Ads — cu mentenanță și tracking în discuție."
           className="mt-4 text-zinc-400 max-w-xl"
           duration={0.3}
         />

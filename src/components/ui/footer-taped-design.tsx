@@ -111,7 +111,7 @@ export function FooterTapedDesign() {
               ZeroBug
             </Link>
             <p className="w-full text-base font-medium text-zinc-400 md:w-4/5">
-              Servicii IT complete: web, e-commerce, API, mobile, AI (OpenAI & Claude)
+              Servicii IT complete: web, e-commerce, API & batch-uri, mobile
               și tracking Google Ads — plus mentenanță lunară cu facturare automată.
             </p>
           </div>

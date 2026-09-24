@@ -27,8 +27,8 @@ const VALUES = [
     body: "Putem livra atât produsul digital, cât și măsurarea Google Ads / eCommerce (POAS, COGS, server-side) — într-un singur partener.",
   },
   {
-    title: "AI unde contează",
-    body: "Integrăm OpenAI & Claude pentru chatboți, automatizări și fluxuri care reduc costurile operaționale, nu doar pentru demo-uri.",
+    title: "API & batch-uri",
+    body: "Integrări ERP/CRM, sync stocuri, importuri pe volume, curieri, facturare — job-uri și API-uri care țin operațiunile fără muncă manuală.",
   },
   {
     title: "Mentenanță predictibilă",
@@ -69,13 +69,13 @@ export default function DesprePage() {
           </p>
           <TextGenerateEffect
             as="h2"
-            words="Un partener tehnic pentru web, e-commerce, AI și mentenanță"
+            words="Un partener tehnic pentru web, e-commerce, API și mentenanță"
             className="mt-3 max-w-3xl text-3xl font-semibold tracking-tight md:text-5xl"
             duration={0.35}
           />
           <div className="mt-8 grid gap-8 text-zinc-400 leading-relaxed md:grid-cols-2">
             <TextGenerateEffect
-              words="ZeroBug este brandul de servicii IT al SC AXP GLOBAL RETAIL SRL. Am pornit de la proiecte web și magazine online, apoi am extins către integrări API, aplicații mobile, analytics și — în 2026 — AI cu OpenAI & Claude."
+              words="ZeroBug este brandul de servicii IT al SC AXP GLOBAL RETAIL SRL. Am pornit de la proiecte web și magazine online, apoi am extins către integrări API, batch-uri de date, aplicații mobile, analytics și tracking Google Ads."
               duration={0.3}
             />
             <TextGenerateEffect

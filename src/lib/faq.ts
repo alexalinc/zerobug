@@ -4,7 +4,7 @@ export const FAQ_CATEGORIES: FaqCategories = {
   general: "General",
   web: "Web & Shop",
   mentenanta: "Mentenanță",
-  ai: "AI & Ads",
+  ads: "Ads & API",
 };
 
 export const FAQ_DATA: FaqData = {
@@ -12,7 +12,7 @@ export const FAQ_DATA: FaqData = {
     {
       question: "Cu ce se ocupă ZeroBug?",
       answer:
-        "Construim website-uri, magazine online, API-uri, aplicații mobile și automatizări — plus mentenanță lunară și tracking Google Ads. Lucrăm cu Next.js, WordPress/WooCommerce, Shopify, Flutter, OpenAI și Claude.",
+        "Construim website-uri, magazine online, API-uri, batch-uri de date, aplicații mobile și automatizări — plus mentenanță lunară și tracking Google Ads. Lucrăm cu Next.js, WordPress/WooCommerce, Shopify și Flutter.",
     },
     {
       question: "Cum începe un proiect?",
@@ -79,11 +79,11 @@ export const FAQ_DATA: FaqData = {
         "Da. Mentenanța e potrivită pentru WordPress/WooCommerce, site-uri Next.js/React și magazine cu trafic real — planul depinde de complexitate și SLA.",
     },
   ],
-  ai: [
+  ads: [
     {
-      question: "Ce tip de AI integrați?",
+      question: "Ce tip de API / batch-uri faceți?",
       answer:
-        "Chatboți pe catalog/support, automatizări interne, fluxuri pe OpenAI și Claude — legate de datele tale reale, nu doar demo-uri. Focus pe reducerea costurilor operaționale.",
+        "Integrări ERP/CRM, SmartBill, curieri AWB, sync stocuri și prețuri, importuri pe volume, feed-uri Merchant Center — job-uri programate și API-uri REST care țin operațiunile fără copy-paste.",
     },
     {
       question: "Ajutați și la Google Ads / tracking?",
@@ -96,9 +96,9 @@ export const FAQ_DATA: FaqData = {
         "Da — Flutter / native-style pentru magazine și operațiuni (ex. WooTrack pe Android: comenzi, KPI, notificări). Discutăm scope-ul înainte de estimare.",
     },
     {
-      question: "Cât costă o integrare AI?",
+      question: "Cât costă o integrare API?",
       answer:
-        "Depinde de sursa de date, canale (web/WhatsApp) și volume. Trimite o cerere pe Servicii → AI sau pe Contact și revenim cu un interval clar.",
+        "Depinde de sisteme, volume și frecvența sync-ului. Trimite o cerere pe Servicii → API & integrări sau pe Contact și revenim cu un interval clar.",
     },
   ],
 };

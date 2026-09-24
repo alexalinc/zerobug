@@ -56,9 +56,9 @@ const PORTFOLIO_LOGOS = [
 const ResponsiveHeroBanner: React.FC<ResponsiveHeroBannerProps> = ({
   backgroundImageUrl = "https://images.unsplash.com/photo-1555066931-4365d14bab8c?auto=format&fit=crop&w=2400&q=80",
   badgeLabel = "2026",
-  badgeText = "Web, AI (OpenAI & Claude), e-commerce și mentenanță",
+  badgeText = "Web, e-commerce, API & mentenanță",
   title = "ZeroBug",
-  description = "Web, e-commerce, API, mobile, AI cu OpenAI & Claude și Google Ads — de la landing pages la platforme custom, cu mentenanță și facturare lunară.",
+  description = "Web, e-commerce, API & batch-uri, mobile și Google Ads — de la landing pages la platforme custom, cu mentenanță și facturare lunară.",
   primaryButtonText = "Vezi serviciile",
   primaryButtonHref = "/servicii",
   secondaryButtonText = "Pachete mentenanță",
@@ -86,12 +86,12 @@ const ResponsiveHeroBanner: React.FC<ResponsiveHeroBannerProps> = ({
       logo: "https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/flutter/flutter-original.svg",
     },
     {
-      name: "OpenAI",
-      logo: "https://cdn.jsdelivr.net/npm/simple-icons@v13/icons/openai.svg",
+      name: "Stripe",
+      logo: "https://cdn.simpleicons.org/stripe/635BFF",
     },
     {
-      name: "Claude",
-      logo: "https://cdn.jsdelivr.net/npm/simple-icons@v13/icons/anthropic.svg",
+      name: "Google Ads",
+      logo: "https://cdn.simpleicons.org/googleads/4285F4",
     },
   ],
 }) => {

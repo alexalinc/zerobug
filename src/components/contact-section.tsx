@@ -13,6 +13,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { MeshGradientShader } from "@/components/ui/mesh-gradient-shader";
 import { TextGenerateEffect } from "@/components/ui/text-generate-effect";
 import { cn } from "@/lib/utils";
+import { getAdsClickIdsForLead } from "@/lib/gclid";
 
 const TESTIMONIALS = [
   {
@@ -25,7 +26,7 @@ const TESTIMONIALS = [
   },
   {
     quote:
-      "Chatbot-ul AI pe care l-au conectat la catalog ne-a redus timpul pe support cu aproape jumătate.",
+      "Integrarea cu curierul și sync-ul de stocuri ne-a redus timpul pe operațiuni cu aproape jumătate.",
     name: "Elena",
     role: "operațiuni · e-commerce",
     image:
@@ -82,12 +83,14 @@ export function ContactSection() {
     setStatus("idle");
     const fd = new FormData(e.currentTarget);
     try {
+      const adsIds = getAdsClickIdsForLead();
       await createLead({
         type: "contact",
         name: String(fd.get("name") || ""),
         email: String(fd.get("email") || ""),
         company: String(fd.get("company") || "") || undefined,
         message: String(fd.get("message") || "") || undefined,
+        ...adsIds,
       });
       setStatus("ok");
       e.currentTarget.reset();

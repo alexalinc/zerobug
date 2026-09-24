@@ -10,6 +10,8 @@
 
 import type * as companies from "../companies.js";
 import type * as crons from "../crons.js";
+import type * as googleAds from "../googleAds.js";
+import type * as googleAdsActions from "../googleAdsActions.js";
 import type * as invoices from "../invoices.js";
 import type * as invoicesActions from "../invoicesActions.js";
 import type * as invoicesBilling from "../invoicesBilling.js";
@@ -31,6 +33,8 @@ import type {
 declare const fullApi: ApiFromModules<{
   companies: typeof companies;
   crons: typeof crons;
+  googleAds: typeof googleAds;
+  googleAdsActions: typeof googleAdsActions;
   invoices: typeof invoices;
   invoicesActions: typeof invoicesActions;
   invoicesBilling: typeof invoicesBilling;

@@ -38,7 +38,7 @@ const STATS: Stat[] = [
     suffix: "+",
     label: "Proiecte livrate",
     description:
-      "Website-uri, magazine, API-uri, aplicații mobile și integrări AI (OpenAI & Claude) puse în producție.",
+      "Website-uri, magazine, API-uri, batch-uri de date și aplicații mobile puse în producție.",
   },
   {
     value: 99,
@@ -112,7 +112,7 @@ export function StatsTicker() {
             duration={0.35}
           />
           <TextGenerateEffect
-            words="Experiență reală pe web, e-commerce, tracking și AI (OpenAI & Claude) — nu slide-uri, ci livrabile care rulează în producție."
+            words="Experiență reală pe web, e-commerce, API & batch-uri și tracking — nu slide-uri, ci livrabile care rulează în producție."
             className="mt-4 text-zinc-400 leading-relaxed"
             duration={0.3}
           />

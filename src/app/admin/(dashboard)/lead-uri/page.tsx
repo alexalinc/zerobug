@@ -12,6 +12,13 @@ const TYPE_LABEL: Record<string, string> = {
   maintenance: "Mentenanță",
 };
 
+const ADS_STATUS_LABEL: Record<string, string> = {
+  pending: "în așteptare",
+  sent: "trimis",
+  skipped: "sărit",
+  failed: "eșuat",
+};
+
 function formatBudget(budget?: number) {
   if (budget == null) return null;
   return `${budget.toLocaleString("ro-RO")} lei`;
@@ -26,6 +33,7 @@ function planLabel(planKey?: string) {
 export default function LeaduriPage() {
   const leads = useQuery(api.leads.list);
   const updateStatus = useMutation(api.leads.updateStatus);
+  const retryGoogleAds = useMutation(api.googleAds.retryGoogleAdsSync);
 
   return (
     <div className="space-y-8">
@@ -35,7 +43,7 @@ export default function LeaduriPage() {
         </h1>
         <p className="mt-2 text-sm text-zinc-400">
           Lead-uri din formularele de pe site — mentenanță include estimare +
-          detalii din wizard.
+          detalii din wizard. Coloana Google Ads arată sync-ul conversiei.
         </p>
       </div>
       <div className="overflow-x-auto border border-white/10">
@@ -47,6 +55,7 @@ export default function LeaduriPage() {
               <th className="p-3">Servicii / estimare</th>
               <th className="p-3">Mesaj</th>
               <th className="p-3">Status</th>
+              <th className="p-3">Google Ads</th>
               <th className="p-3" />
             </tr>
           </thead>
@@ -68,6 +77,10 @@ export default function LeaduriPage() {
                 budget?: number;
                 quoteDetails?: string;
                 status: "new" | "contacted" | "won" | "lost";
+                gclid?: string;
+                googleAdsStatus?: "pending" | "sent" | "skipped" | "failed";
+                googleAdsError?: string;
+                googleAdsSyncedAt?: number;
                 createdAt: number;
               }) => (
                 <tr key={l._id} className="border-b border-white/5 align-top">
@@ -125,6 +138,62 @@ export default function LeaduriPage() {
                     {l.message || "—"}
                   </td>
                   <td className="p-3">{l.status}</td>
+                  <td className="p-3 max-w-[10rem]">
+                    {l.googleAdsStatus ? (
+                      <div className="space-y-1">
+                        <p
+                          className={
+                            l.googleAdsStatus === "sent"
+                              ? "text-emerald-400"
+                              : l.googleAdsStatus === "failed"
+                                ? "text-red-400"
+                                : l.googleAdsStatus === "pending"
+                                  ? "text-amber-300"
+                                  : "text-zinc-500"
+                          }
+                        >
+                          {ADS_STATUS_LABEL[l.googleAdsStatus] ??
+                            l.googleAdsStatus}
+                        </p>
+                        {l.gclid ? (
+                          <p className="text-[10px] text-zinc-600 truncate" title={l.gclid}>
+                            gclid
+                          </p>
+                        ) : null}
+                        {l.googleAdsError ? (
+                          <p
+                            className="text-[10px] leading-snug text-zinc-500 line-clamp-3"
+                            title={l.googleAdsError}
+                          >
+                            {l.googleAdsError}
+                          </p>
+                        ) : null}
+                        {(l.googleAdsStatus === "failed" ||
+                          l.googleAdsStatus === "skipped") && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="mt-1 h-7 text-xs"
+                            onClick={() =>
+                              void retryGoogleAds({ leadId: l._id }).catch(
+                                (err: unknown) => {
+                                  alert(
+                                    err instanceof Error
+                                      ? err.message
+                                      : "Retry eșuat",
+                                  );
+                                },
+                              )
+                            }
+                          >
+                            Re-trimite
+                          </Button>
+                        )}
+                      </div>
+                    ) : (
+                      <span className="text-zinc-600">—</span>
+                    )}
+                  </td>
                   <td className="space-x-1 p-3 text-right">
                     {(["contacted", "won", "lost"] as const).map((s) => (
                       <Button

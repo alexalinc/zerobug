@@ -13,7 +13,7 @@ Sitemap: {{SITE_URL}}/sitemap.xml
 
 const DEFAULT_LLMS = `# ZeroBug
 
-> Agenție IT din România: web development, e-commerce, API & integrări, mobile, AI (OpenAI / Claude), Google Ads tracking și mentenanță WordPress / WooCommerce.
+> Agenție IT din România: web development, e-commerce, API & integrări / batch-uri, mobile, Google Ads tracking și mentenanță WordPress / WooCommerce.
 
 ZeroBug construiește și întreține produse digitale pentru companii — de la site-uri și magazine online la automatizări, tracking și abonamente de mentenanță cu facturare lunară.
 

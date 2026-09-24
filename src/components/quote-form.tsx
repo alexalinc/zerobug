@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
+import { getAdsClickIdsForLead } from "@/lib/gclid";
 
 type Props = {
   type: "contact" | "service_quote" | "maintenance";
@@ -54,6 +55,7 @@ export function QuoteForm({
         : String(fd.get("serviceName") || "") || undefined;
 
     try {
+      const adsIds = getAdsClickIdsForLead();
       await createLead({
         type,
         name: String(fd.get("name") || ""),
@@ -65,6 +67,7 @@ export function QuoteForm({
         serviceName: picked,
         planKey,
         complexity: String(fd.get("complexity") || "") || undefined,
+        ...adsIds,
       });
       setStatus("ok");
       setSelectedServices([]);

@@ -207,7 +207,7 @@ export function CodeThinking() {
             duration={0.35}
           />
           <TextGenerateEffect
-            words="Trage slider-ul: de la „merge and hope” la tipuri, teste și fluxuri care țin în producție — OpenAI, Claude, Stripe, Woo, Next."
+            words="Trage slider-ul: de la „merge and hope” la tipuri, teste și fluxuri care țin în producție — Stripe, Woo, Next, API & batch."
             className="mx-auto mt-4 text-zinc-400"
             duration={0.3}
           />
