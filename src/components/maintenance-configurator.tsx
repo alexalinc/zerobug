@@ -18,7 +18,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
-import { getAdsClickIdsForLead } from "@/lib/gclid";
+import {
+  getAdsClickIdsForLead,
+  getMarketingConsentForLead,
+} from "@/lib/gclid";
 import {
   ACCESS_OPTIONS,
   BUSINESS_TYPES,
@@ -210,6 +213,7 @@ export function MaintenanceConfigurator() {
           },
         }),
         ...getAdsClickIdsForLead(),
+        marketingConsent: getMarketingConsentForLead(),
       });
       setStatus("ok");
     } catch {

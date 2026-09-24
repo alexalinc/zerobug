@@ -1,12 +1,22 @@
 "use client";
 
 import { useEffect } from "react";
-import { captureAdsClickIdsFromUrl } from "@/lib/gclid";
+import { hasMarketingConsent } from "@/lib/cookie-consent";
+import { captureAdsClickIdsFromUrl, clearAdsClickIdsCookie } from "@/lib/gclid";
 
-/** Persists gclid/gbraid/wbraid from the landing URL into a first-party cookie. */
+/** Persists gclid/gbraid/wbraid only after marketing cookie consent. */
 export function GclidCapture() {
   useEffect(() => {
-    captureAdsClickIdsFromUrl();
+    function sync() {
+      if (hasMarketingConsent()) {
+        captureAdsClickIdsFromUrl();
+      } else {
+        clearAdsClickIdsCookie();
+      }
+    }
+    sync();
+    window.addEventListener("zb-cookie-consent-changed", sync);
+    return () => window.removeEventListener("zb-cookie-consent-changed", sync);
   }, []);
   return null;
 }

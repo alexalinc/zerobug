@@ -2,6 +2,7 @@ import { SignJWT, jwtVerify } from "jose";
 
 const OAUTH_SCOPE = [
   "https://www.googleapis.com/auth/datamanager",
+  "https://www.googleapis.com/auth/adwords",
   "https://www.googleapis.com/auth/userinfo.email",
   "openid",
 ].join(" ");

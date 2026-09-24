@@ -24,10 +24,23 @@ export const create = mutation({
     gclid: v.optional(v.string()),
     gbraid: v.optional(v.string()),
     wbraid: v.optional(v.string()),
+    marketingConsent: v.optional(v.boolean()),
   },
   returns: v.id("leads"),
   handler: async (ctx, args) => {
-    const { gclid, gbraid, wbraid, ...rest } = args;
+    const {
+      gclid,
+      gbraid,
+      wbraid,
+      marketingConsent,
+      ...rest
+    } = args;
+
+    const consented = Boolean(marketingConsent);
+    // Never persist click IDs without marketing consent
+    const safeGclid = consented ? gclid || undefined : undefined;
+    const safeGbraid = consented ? gbraid || undefined : undefined;
+    const safeWbraid = consented ? wbraid || undefined : undefined;
 
     const settings = await ctx.db
       .query("googleAdsSettings")
@@ -40,17 +53,28 @@ export const create = mutation({
         settings.conversionActionId,
     );
 
+    let googleAdsStatus:
+      | "pending"
+      | "skipped"
+      | undefined;
+    if (syncReady) {
+      googleAdsStatus = consented ? "pending" : "skipped";
+    }
+
     const id = await ctx.db.insert("leads", {
       ...rest,
-      gclid: gclid || undefined,
-      gbraid: gbraid || undefined,
-      wbraid: wbraid || undefined,
-      googleAdsStatus: syncReady ? "pending" : undefined,
+      gclid: safeGclid,
+      gbraid: safeGbraid,
+      wbraid: safeWbraid,
+      marketingConsent: consented,
+      googleAdsStatus,
+      googleAdsError: syncReady && !consented
+        ? "Fără consimțământ marketing (cookie banner)"
+        : undefined,
       status: "new",
       createdAt: Date.now(),
     });
 
-    // Service quotes stay in admin only — no email notification.
     if (args.type !== "service_quote") {
       await ctx.scheduler.runAfter(0, internal.leadsActions.notifyLeadEmail, {
         type: args.type,
@@ -69,7 +93,7 @@ export const create = mutation({
       });
     }
 
-    if (syncReady) {
+    if (syncReady && consented) {
       await ctx.scheduler.runAfter(
         0,
         internal.googleAdsActions.uploadLeadConversion,

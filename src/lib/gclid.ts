@@ -1,7 +1,9 @@
 /**
  * First-party capture of Google Ads click IDs for offline / enhanced conversions.
- * Cookie lasts ~90 days (Ads click attribution window).
+ * Only persisted / returned when the visitor granted marketing cookie consent.
  */
+
+import { hasMarketingConsent } from "@/lib/cookie-consent";
 
 const COOKIE_NAME = "zb_gads";
 const MAX_AGE_SEC = 60 * 60 * 24 * 90;
@@ -23,12 +25,18 @@ function readCookieRaw(): string | null {
 
 function writeCookie(ids: AdsClickIds) {
   if (typeof document === "undefined") return;
+  if (!hasMarketingConsent()) return;
   const payload = encodeURIComponent(JSON.stringify(ids));
   const secure =
     typeof window !== "undefined" && window.location.protocol === "https:"
       ? "; Secure"
       : "";
   document.cookie = `${COOKIE_NAME}=${payload}; Path=/; Max-Age=${MAX_AGE_SEC}; SameSite=Lax${secure}`;
+}
+
+export function clearAdsClickIdsCookie() {
+  if (typeof document === "undefined") return;
+  document.cookie = `${COOKIE_NAME}=; Path=/; Max-Age=0; SameSite=Lax`;
 }
 
 export function parseAdsClickIdsFromSearch(
@@ -46,6 +54,9 @@ export function parseAdsClickIdsFromSearch(
 }
 
 export function captureAdsClickIdsFromUrl(): AdsClickIds {
+  if (!hasMarketingConsent()) {
+    return {};
+  }
   const fromUrl = parseAdsClickIdsFromSearch();
   if (!fromUrl.gclid && !fromUrl.gbraid && !fromUrl.wbraid) {
     return getStoredAdsClickIds();
@@ -61,6 +72,7 @@ export function captureAdsClickIdsFromUrl(): AdsClickIds {
 }
 
 export function getStoredAdsClickIds(): AdsClickIds {
+  if (!hasMarketingConsent()) return {};
   const raw = readCookieRaw();
   if (!raw) return {};
   try {
@@ -75,9 +87,9 @@ export function getStoredAdsClickIds(): AdsClickIds {
   }
 }
 
-/** Call from lead form submit — returns ids to pass into leads.create */
+/** Call from lead form submit — ids only if marketing consent is granted. */
 export function getAdsClickIdsForLead(): AdsClickIds {
-  // Prefer fresh URL params, fall back to cookie
+  if (!hasMarketingConsent()) return {};
   const fromUrl = parseAdsClickIdsFromSearch();
   if (fromUrl.gclid || fromUrl.gbraid || fromUrl.wbraid) {
     writeCookie({
@@ -87,4 +99,8 @@ export function getAdsClickIdsForLead(): AdsClickIds {
     return { ...getStoredAdsClickIds(), ...fromUrl };
   }
   return getStoredAdsClickIds();
+}
+
+export function getMarketingConsentForLead(): boolean {
+  return hasMarketingConsent();
 }

@@ -1,7 +1,7 @@
 "use client";
 
-import { Suspense, useEffect, useMemo, useState } from "react";
-import { useMutation, useQuery } from "convex/react";
+import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
+import { useAction, useMutation, useQuery } from "convex/react";
 import { useSearchParams } from "next/navigation";
 import { api } from "@convex/_generated/api";
 import { Button } from "@/components/ui/button";
@@ -31,6 +31,8 @@ function SetariPageInner() {
   const googleConnection = useQuery(api.googleAds.getConnection);
   const updateGoogleConfig = useMutation(api.googleAds.updateConfig);
   const disconnectGoogle = useMutation(api.googleAds.disconnect);
+  const listCampaigns = useAction(api.googleAdsActions.listCampaigns);
+  const listConversions = useAction(api.googleAdsActions.listConversionActions);
   const searchParams = useSearchParams();
 
   const [form, setForm] = useState({
@@ -57,12 +59,28 @@ function SetariPageInner() {
     customerId: "",
     loginCustomerId: "",
     conversionActionId: "",
+    conversionActionName: "",
+    conversionValueRon: "20",
     enabled: false,
   });
   const [gadsSaving, setGadsSaving] = useState(false);
   const [gadsSaved, setGadsSaved] = useState(false);
   const [gadsError, setGadsError] = useState<string | null>(null);
   const [gadsBanner, setGadsBanner] = useState<string | null>(null);
+  const [campaigns, setCampaigns] = useState<
+    Array<{ id: string; name: string; status: string; channelType?: string }>
+  >([]);
+  const [conversions, setConversions] = useState<
+    Array<{
+      id: string;
+      name: string;
+      type?: string;
+      status?: string;
+      category?: string;
+    }>
+  >([]);
+  const [listLoading, setListLoading] = useState(false);
+  const [listError, setListError] = useState<string | null>(null);
 
   useEffect(() => {
     void seed({}).catch(() => {
@@ -98,15 +116,51 @@ function SetariPageInner() {
         customerId: googleConnection.customerId || "",
         loginCustomerId: googleConnection.loginCustomerId || "",
         conversionActionId: googleConnection.conversionActionId || "",
+        conversionActionName: googleConnection.conversionActionName || "",
+        conversionValueRon: String(googleConnection.conversionValueRon ?? 20),
         enabled: googleConnection.enabled,
       });
     }
   }, [googleConnection]);
 
+  const refreshAdsLists = useCallback(async () => {
+    if (!googleConnection?.connected || !gadsForm.customerId.trim()) return;
+    setListLoading(true);
+    setListError(null);
+    try {
+      const args = {
+        customerId: gadsForm.customerId,
+        loginCustomerId: gadsForm.loginCustomerId || undefined,
+      };
+      const [cRes, vRes] = await Promise.all([
+        listCampaigns(args),
+        listConversions(args),
+      ]);
+      setCampaigns(cRes.campaigns);
+      setConversions(vRes.conversions);
+      const err = cRes.error || vRes.error;
+      if (err) setListError(err);
+    } catch (err) {
+      setListError(
+        err instanceof Error ? err.message : "Nu am putut încărca listele Ads",
+      );
+    } finally {
+      setListLoading(false);
+    }
+  }, [
+    googleConnection?.connected,
+    gadsForm.customerId,
+    gadsForm.loginCustomerId,
+    listCampaigns,
+    listConversions,
+  ]);
+
   useEffect(() => {
     const google = searchParams.get("google");
     if (google === "connected") {
-      setGadsBanner("Cont Google conectat. Completează Customer ID și Conversion Action ID, apoi activează sync.");
+      setGadsBanner(
+        "Cont Google conectat. Setează Customer ID, alege conversion goal, apoi activează sync.",
+      );
     } else if (google === "error") {
       setGadsBanner(
         `Conectarea a eșuat: ${searchParams.get("message") || "eroare necunoscută"}`,
@@ -163,9 +217,15 @@ function SetariPageInner() {
     setGadsError(null);
     setGadsSaved(false);
     try {
+      const selected = conversions.find(
+        (c) => c.id === gadsForm.conversionActionId,
+      );
       await updateGoogleConfig({
         customerId: gadsForm.customerId,
         conversionActionId: gadsForm.conversionActionId,
+        conversionActionName:
+          selected?.name || gadsForm.conversionActionName || undefined,
+        conversionValueRon: Number(gadsForm.conversionValueRon) || 20,
         loginCustomerId: gadsForm.loginCustomerId || undefined,
         enabled: gadsForm.enabled,
       });
@@ -189,8 +249,12 @@ function SetariPageInner() {
         customerId: "",
         loginCustomerId: "",
         conversionActionId: "",
+        conversionActionName: "",
+        conversionValueRon: "20",
         enabled: false,
       });
+      setCampaigns([]);
+      setConversions([]);
       setGadsBanner("Cont Google deconectat.");
     } catch (err) {
       setGadsError(
@@ -323,8 +387,11 @@ function SetariPageInner() {
         <div>
           <p className="text-sm font-medium text-white">Google Ads</p>
           <p className="mt-1 text-xs text-zinc-500">
-            Conectează contul prin Google Cloud OAuth. Lead-urile de pe site se
-            trimit ca Enhanced Conversions (Data Manager API) la submit.
+            Lead-urile (contact / ofertă / mentenanță) se trimit pe conversion
+            goal-ul selectat, cu valoare fixă{" "}
+            <strong className="text-zinc-300">20 RON</strong>, doar dacă
+            vizitatorul a acceptat cookie-uri marketing. Enhanced Conversions =
+            email + telefon hash.
           </p>
         </div>
 
@@ -352,7 +419,7 @@ function SetariPageInner() {
                   <span className="ml-2 text-emerald-400">· sync activ</span>
                 ) : (
                   <span className="ml-2 text-amber-400">
-                    · completează ID-urile + activează
+                    · completează + activează
                   </span>
                 )}
               </p>
@@ -387,9 +454,6 @@ function SetariPageInner() {
                 placeholder="1234567890"
                 required
               />
-              <p className="text-[11px] text-zinc-500">
-                Fără liniuțe. Contul care deține Conversion Action.
-              </p>
             </div>
             <div className="space-y-1.5">
               <Label>Login Customer ID (MCC, opțional)</Label>
@@ -404,24 +468,118 @@ function SetariPageInner() {
                 placeholder="gol = același cu Customer ID"
               />
             </div>
+
+            <div className="flex flex-wrap items-center gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={listLoading || !gadsForm.customerId.trim()}
+                onClick={() => void refreshAdsLists()}
+              >
+                {listLoading
+                  ? "Se încarcă…"
+                  : "Încarcă campanii + conversion goals"}
+              </Button>
+              {listError ? (
+                <p className="text-xs text-amber-300">{listError}</p>
+              ) : null}
+            </div>
+
+            {campaigns.length > 0 ? (
+              <div className="space-y-2 rounded-xl border border-white/10 bg-zinc-950/40 p-3">
+                <p className="text-xs font-medium text-zinc-300">
+                  Campanii active ({campaigns.length})
+                </p>
+                <ul className="max-h-40 space-y-1 overflow-y-auto text-xs text-zinc-400">
+                  {campaigns.map((c) => (
+                    <li
+                      key={c.id}
+                      className="flex justify-between gap-2 border-b border-white/5 py-1"
+                    >
+                      <span className="text-zinc-200">{c.name}</span>
+                      <span className="shrink-0 text-zinc-500">
+                        {c.channelType || c.status}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
+
             <div className="space-y-1.5">
-              <Label>Conversion Action ID</Label>
+              <Label>Conversion goal (unde trimitem lead-ul)</Label>
+              {conversions.length > 0 ? (
+                <select
+                  className="flex h-9 w-full rounded-lg border border-white/10 bg-zinc-950 px-3 text-sm text-white"
+                  value={gadsForm.conversionActionId}
+                  onChange={(e) => {
+                    const id = e.target.value;
+                    const found = conversions.find((c) => c.id === id);
+                    setGadsForm((f) => ({
+                      ...f,
+                      conversionActionId: id,
+                      conversionActionName: found?.name || "",
+                    }));
+                  }}
+                  required
+                >
+                  <option value="">Selectează…</option>
+                  {conversions.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name}
+                      {c.type ? ` · ${c.type}` : ""}
+                      {c.category ? ` · ${c.category}` : ""}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <Input
+                  value={gadsForm.conversionActionId}
+                  onChange={(e) =>
+                    setGadsForm((f) => ({
+                      ...f,
+                      conversionActionId: e.target.value,
+                    }))
+                  }
+                  placeholder="ID numeric — sau încarcă lista mai sus"
+                  required
+                />
+              )}
+              {gadsForm.conversionActionName ? (
+                <p className="text-[11px] text-zinc-500">
+                  Selectat: {gadsForm.conversionActionName} (ID{" "}
+                  {gadsForm.conversionActionId})
+                </p>
+              ) : (
+                <p className="text-[11px] text-zinc-500">
+                  Preferă tip Upload clicks / Import. Necesită{" "}
+                  <code className="text-zinc-400">GOOGLE_ADS_DEVELOPER_TOKEN</code>{" "}
+                  în Convex.
+                </p>
+              )}
+            </div>
+
+            <div className="space-y-1.5">
+              <Label>Valoare conversie per lead (RON)</Label>
               <Input
-                value={gadsForm.conversionActionId}
+                type="number"
+                min={1}
+                step={1}
+                value={gadsForm.conversionValueRon}
                 onChange={(e) =>
                   setGadsForm((f) => ({
                     ...f,
-                    conversionActionId: e.target.value,
+                    conversionValueRon: e.target.value,
                   }))
                 }
-                placeholder="987654321"
-                required
               />
               <p className="text-[11px] text-zinc-500">
-                Tools → Conversions → acțiune tip Import / Upload clicks.
-                ID numeric, nu resource name.
+                Default 20 lei pentru fiecare cerere ofertă / contact /
+                mentenanță.
               </p>
             </div>
+
             <label className="flex items-center gap-2 text-sm text-zinc-300">
               <input
                 type="checkbox"
@@ -456,10 +614,10 @@ function SetariPageInner() {
           NEXT_PUBLIC_CONVEX_URL
           {"\n"}
           GOOGLE_OAUTH_CLIENT_ID, GOOGLE_OAUTH_CLIENT_SECRET,
-          GOOGLE_OAUTH_REDIRECT_URI
+          GOOGLE_OAUTH_REDIRECT_URI, GOOGLE_ADS_DEVELOPER_TOKEN
           {"\n"}
-          (aceleași GOOGLE_* și în Convex Dashboard → Settings → Environment
-          Variables, pentru refresh token la upload)
+          (GOOGLE_* + DEVELOPER_TOKEN și în Convex Dashboard → Environment
+          Variables)
         </code>
       </div>
     </div>

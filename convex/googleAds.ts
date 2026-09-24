@@ -25,6 +25,8 @@ export const getConnection = query({
       customerId: v.optional(v.string()),
       loginCustomerId: v.optional(v.string()),
       conversionActionId: v.optional(v.string()),
+      conversionActionName: v.optional(v.string()),
+      conversionValueRon: v.number(),
       connectedAt: v.optional(v.number()),
       enabled: v.boolean(),
       ready: v.boolean(),
@@ -48,6 +50,8 @@ export const getConnection = query({
       customerId: row.customerId,
       loginCustomerId: row.loginCustomerId,
       conversionActionId: row.conversionActionId,
+      conversionActionName: row.conversionActionName,
+      conversionValueRon: row.conversionValueRon ?? 20,
       connectedAt: row.connectedAt,
       enabled: row.enabled,
       ready,
@@ -100,6 +104,8 @@ export const updateConfig = mutation({
   args: {
     customerId: v.string(),
     conversionActionId: v.string(),
+    conversionActionName: v.optional(v.string()),
+    conversionValueRon: v.optional(v.number()),
     loginCustomerId: v.optional(v.string()),
     enabled: v.boolean(),
   },
@@ -120,9 +126,15 @@ export const updateConfig = mutation({
     if (!customerId || !conversionActionId) {
       throw new Error("Customer ID și Conversion Action ID sunt obligatorii");
     }
+    const value =
+      typeof args.conversionValueRon === "number" && args.conversionValueRon > 0
+        ? args.conversionValueRon
+        : 20;
     await ctx.db.patch(existing._id, {
       customerId,
       conversionActionId,
+      conversionActionName: args.conversionActionName || undefined,
+      conversionValueRon: value,
       loginCustomerId: loginCustomerId || undefined,
       enabled: args.enabled,
     });
@@ -164,6 +176,12 @@ export const retryGoogleAdsSync = mutation({
       !settings.enabled
     ) {
       throw new Error("Google Ads nu e configurat / activ");
+    }
+
+    if (!lead.marketingConsent) {
+      throw new Error(
+        "Lead fără consimțământ marketing — nu se poate trimite conversia",
+      );
     }
 
     await ctx.db.patch(args.leadId, {

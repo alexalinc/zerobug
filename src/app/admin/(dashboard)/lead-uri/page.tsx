@@ -81,6 +81,7 @@ export default function LeaduriPage() {
                 googleAdsStatus?: "pending" | "sent" | "skipped" | "failed";
                 googleAdsError?: string;
                 googleAdsSyncedAt?: number;
+                marketingConsent?: boolean;
                 createdAt: number;
               }) => (
                 <tr key={l._id} className="border-b border-white/5 align-top">
@@ -159,6 +160,9 @@ export default function LeaduriPage() {
                           <p className="text-[10px] text-zinc-600 truncate" title={l.gclid}>
                             gclid
                           </p>
+                        ) : null}
+                        {l.marketingConsent === false ? (
+                          <p className="text-[10px] text-zinc-600">fără consent</p>
                         ) : null}
                         {l.googleAdsError ? (
                           <p

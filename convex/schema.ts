@@ -134,6 +134,8 @@ export default defineSchema({
     gclid: v.optional(v.string()),
     gbraid: v.optional(v.string()),
     wbraid: v.optional(v.string()),
+    /** Visitor granted marketing cookies (required for Ads upload) */
+    marketingConsent: v.optional(v.boolean()),
     googleAdsStatus: v.optional(
       v.union(
         v.literal("pending"),
@@ -161,6 +163,9 @@ export default defineSchema({
     customerId: v.optional(v.string()),
     loginCustomerId: v.optional(v.string()),
     conversionActionId: v.optional(v.string()),
+    conversionActionName: v.optional(v.string()),
+    /** Fixed RON value uploaded per lead conversion (default 20) */
+    conversionValueRon: v.optional(v.number()),
     connectedAt: v.number(),
     enabled: v.boolean(),
   }).index("by_key", ["key"]),

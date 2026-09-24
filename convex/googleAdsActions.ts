@@ -2,26 +2,26 @@
 
 import { createHash } from "crypto";
 import { v } from "convex/values";
-import { internalAction } from "./_generated/server";
+import { action, internalAction } from "./_generated/server";
 import { internal } from "./_generated/api";
 
 const DATA_MANAGER_INGEST =
   "https://datamanager.googleapis.com/v1/events:ingest";
 const TOKEN_URL = "https://oauth2.googleapis.com/token";
+/** Google Ads API version for listing resources */
+const ADS_API = "https://googleads.googleapis.com/v19";
+
+/** Fixed conversion value for every lead (contact / quote / maintenance). */
+export const LEAD_CONVERSION_VALUE_RON = 20;
 
 function sha256Hex(value: string): string {
   return createHash("sha256").update(value, "utf8").digest("hex");
 }
 
-/** Normalize email per Google Enhanced Conversions rules. */
 function normalizeEmail(email: string): string {
   return email.trim().toLowerCase();
 }
 
-/**
- * Normalize phone to E.164-ish digits for RO defaults when no country code.
- * Google expects hashed E.164 (e.g. +4077...).
- */
 function normalizePhone(phone: string): string | null {
   const digits = phone.replace(/[^\d+]/g, "").trim();
   if (!digits) return null;
@@ -29,12 +29,10 @@ function normalizePhone(phone: string): string | null {
   if (normalized.startsWith("00")) {
     normalized = `+${normalized.slice(2)}`;
   } else if (normalized.startsWith("0") && !normalized.startsWith("+")) {
-    // Romania local format → +40
     normalized = `+40${normalized.slice(1)}`;
   } else if (!normalized.startsWith("+") && normalized.length >= 10) {
     normalized = `+${normalized}`;
   }
-  // Keep only + and digits
   const cleaned = normalized.replace(/[^\d+]/g, "");
   if (cleaned.replace(/\D/g, "").length < 8) return null;
   return cleaned;
@@ -109,14 +107,103 @@ async function refreshAccessToken(refreshToken: string): Promise<{
   };
 }
 
+type SettingsRow = {
+  refreshToken: string;
+  accessToken?: string;
+  tokenExpiresAt?: number;
+  customerId?: string;
+  loginCustomerId?: string;
+  conversionActionId?: string;
+  conversionValueRon?: number;
+  enabled?: boolean;
+};
+
+async function ensureAccessToken(
+  ctx: {
+    runMutation: (
+      ref: typeof internal.googleAds.patchTokensInternal,
+      args: {
+        accessToken: string;
+        tokenExpiresAt: number;
+        refreshToken?: string;
+      },
+    ) => Promise<null>;
+  },
+  settings: SettingsRow,
+): Promise<string> {
+  let accessToken = settings.accessToken;
+  let expiresAt = settings.tokenExpiresAt;
+  const skewMs = 60_000;
+  if (!accessToken || !expiresAt || expiresAt < Date.now() + skewMs) {
+    const refreshed = await refreshAccessToken(settings.refreshToken);
+    accessToken = refreshed.accessToken;
+    expiresAt = Date.now() + refreshed.expiresIn * 1000;
+    await ctx.runMutation(internal.googleAds.patchTokensInternal, {
+      accessToken,
+      tokenExpiresAt: expiresAt,
+      refreshToken: refreshed.refreshToken,
+    });
+  }
+  return accessToken;
+}
+
+async function googleAdsSearch(
+  accessToken: string,
+  customerId: string,
+  loginCustomerId: string,
+  query: string,
+): Promise<unknown[]> {
+  const developerToken = process.env.GOOGLE_ADS_DEVELOPER_TOKEN;
+  if (!developerToken) {
+    throw new Error(
+      "GOOGLE_ADS_DEVELOPER_TOKEN lipsește în Convex env (API Center Google Ads)",
+    );
+  }
+
+  const res = await fetch(
+    `${ADS_API}/customers/${customerId}/googleAds:search`,
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "developer-token": developerToken,
+        "login-customer-id": loginCustomerId,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ query }),
+    },
+  );
+
+  const text = await res.text();
+  let json: {
+    results?: unknown[];
+    error?: { message?: string };
+  } = {};
+  try {
+    json = JSON.parse(text) as typeof json;
+  } catch {
+    /* ignore */
+  }
+
+  if (!res.ok) {
+    throw new Error(
+      json.error?.message ||
+        text.slice(0, 400) ||
+        `Google Ads search failed (${res.status})`,
+    );
+  }
+
+  return json.results ?? [];
+}
+
 export const uploadLeadConversion = internalAction({
   args: { leadId: v.id("leads") },
   returns: v.null(),
   handler: async (ctx, args) => {
-    const settings = await ctx.runQuery(
+    const settings = (await ctx.runQuery(
       internal.googleAds.getConnectionInternal,
       {},
-    );
+    )) as SettingsRow | null;
     if (
       !settings?.refreshToken ||
       !settings.enabled ||
@@ -138,6 +225,15 @@ export const uploadLeadConversion = internalAction({
       return null;
     }
 
+    if (!lead.marketingConsent) {
+      await ctx.runMutation(internal.googleAds.patchLeadSyncInternal, {
+        leadId: args.leadId,
+        googleAdsStatus: "skipped",
+        googleAdsError: "Fără consimțământ marketing (cookie banner)",
+      });
+      return null;
+    }
+
     const hasClickId = Boolean(lead.gclid || lead.gbraid || lead.wbraid);
     const userIdentifiers = buildUserIdentifiers(lead.email, lead.phone);
     if (!hasClickId && userIdentifiers.length === 0) {
@@ -150,23 +246,7 @@ export const uploadLeadConversion = internalAction({
     }
 
     try {
-      let accessToken = settings.accessToken as string | undefined;
-      let expiresAt = settings.tokenExpiresAt as number | undefined;
-      const skewMs = 60_000;
-      if (
-        !accessToken ||
-        !expiresAt ||
-        expiresAt < Date.now() + skewMs
-      ) {
-        const refreshed = await refreshAccessToken(settings.refreshToken);
-        accessToken = refreshed.accessToken;
-        expiresAt = Date.now() + refreshed.expiresIn * 1000;
-        await ctx.runMutation(internal.googleAds.patchTokensInternal, {
-          accessToken,
-          tokenExpiresAt: expiresAt,
-          refreshToken: refreshed.refreshToken,
-        });
-      }
+      const accessToken = await ensureAccessToken(ctx, settings);
 
       const customerId = String(settings.customerId).replace(/-/g, "");
       const loginId = settings.loginCustomerId
@@ -178,20 +258,24 @@ export const uploadLeadConversion = internalAction({
       if (lead.gbraid) adIdentifiers.gbraid = lead.gbraid;
       if (lead.wbraid) adIdentifiers.wbraid = lead.wbraid;
 
+      const valueRon =
+        typeof settings.conversionValueRon === "number" &&
+        settings.conversionValueRon > 0
+          ? settings.conversionValueRon
+          : LEAD_CONVERSION_VALUE_RON;
+
       const event: Record<string, unknown> = {
         eventTimestamp: new Date(lead.createdAt).toISOString(),
         transactionId: String(lead._id),
         eventSource: "WEB",
         currency: "RON",
+        conversionValue: valueRon,
       };
       if (Object.keys(adIdentifiers).length > 0) {
         event.adIdentifiers = adIdentifiers;
       }
       if (userIdentifiers.length > 0) {
         event.userData = { userIdentifiers };
-      }
-      if (typeof lead.budget === "number" && lead.budget > 0) {
-        event.conversionValue = lead.budget;
       }
 
       const payload = {
@@ -264,5 +348,172 @@ export const uploadLeadConversion = internalAction({
     }
 
     return null;
+  },
+});
+
+const campaignItem = v.object({
+  id: v.string(),
+  name: v.string(),
+  status: v.string(),
+  channelType: v.optional(v.string()),
+});
+
+const conversionItem = v.object({
+  id: v.string(),
+  name: v.string(),
+  type: v.optional(v.string()),
+  status: v.optional(v.string()),
+  category: v.optional(v.string()),
+});
+
+/** List ENABLED campaigns for the connected customer. */
+export const listCampaigns = action({
+  args: {
+    customerId: v.optional(v.string()),
+    loginCustomerId: v.optional(v.string()),
+  },
+  returns: v.object({
+    campaigns: v.array(campaignItem),
+    error: v.optional(v.string()),
+  }),
+  handler: async (ctx, args) => {
+    const settings = (await ctx.runQuery(
+      internal.googleAds.getConnectionInternal,
+      {},
+    )) as SettingsRow | null;
+    const customerId = (args.customerId || settings?.customerId || "")
+      .replace(/-/g, "")
+      .trim();
+    if (!settings?.refreshToken || !customerId) {
+      return {
+        campaigns: [],
+        error: "Conectează Google Ads și setează Customer ID",
+      };
+    }
+    try {
+      const accessToken = await ensureAccessToken(ctx, settings);
+      const loginId = (
+        args.loginCustomerId ||
+        settings.loginCustomerId ||
+        customerId
+      )
+        .replace(/-/g, "")
+        .trim();
+
+      const results = await googleAdsSearch(
+        accessToken,
+        customerId,
+        loginId,
+        `SELECT campaign.id, campaign.name, campaign.status, campaign.advertising_channel_type
+         FROM campaign
+         WHERE campaign.status = 'ENABLED'
+         ORDER BY campaign.name`,
+      );
+
+      const campaigns = results
+        .map((row) => {
+          const r = row as {
+            campaign?: {
+              id?: string | number;
+              name?: string;
+              status?: string;
+              advertisingChannelType?: string;
+            };
+          };
+          return {
+            id: String(r.campaign?.id ?? ""),
+            name: r.campaign?.name ?? "(fără nume)",
+            status: r.campaign?.status ?? "UNKNOWN",
+            channelType: r.campaign?.advertisingChannelType,
+          };
+        })
+        .filter((c) => c.id);
+
+      return { campaigns };
+    } catch (err) {
+      return {
+        campaigns: [],
+        error: err instanceof Error ? err.message : "Listare campanii eșuată",
+      };
+    }
+  },
+});
+
+/** List conversion actions (goals) for selection. */
+export const listConversionActions = action({
+  args: {
+    customerId: v.optional(v.string()),
+    loginCustomerId: v.optional(v.string()),
+  },
+  returns: v.object({
+    conversions: v.array(conversionItem),
+    error: v.optional(v.string()),
+  }),
+  handler: async (ctx, args) => {
+    const settings = (await ctx.runQuery(
+      internal.googleAds.getConnectionInternal,
+      {},
+    )) as SettingsRow | null;
+    const customerId = (args.customerId || settings?.customerId || "")
+      .replace(/-/g, "")
+      .trim();
+    if (!settings?.refreshToken || !customerId) {
+      return {
+        conversions: [],
+        error: "Conectează Google Ads și setează Customer ID",
+      };
+    }
+    try {
+      const accessToken = await ensureAccessToken(ctx, settings);
+      const loginId = (
+        args.loginCustomerId ||
+        settings.loginCustomerId ||
+        customerId
+      )
+        .replace(/-/g, "")
+        .trim();
+
+      const results = await googleAdsSearch(
+        accessToken,
+        customerId,
+        loginId,
+        `SELECT conversion_action.id, conversion_action.name, conversion_action.type,
+                conversion_action.status, conversion_action.category
+         FROM conversion_action
+         WHERE conversion_action.status != 'REMOVED'
+         ORDER BY conversion_action.name`,
+      );
+
+      const conversions = results
+        .map((row) => {
+          const r = row as {
+            conversionAction?: {
+              id?: string | number;
+              name?: string;
+              type?: string;
+              status?: string;
+              category?: string;
+            };
+          };
+          return {
+            id: String(r.conversionAction?.id ?? ""),
+            name: r.conversionAction?.name ?? "(fără nume)",
+            type: r.conversionAction?.type,
+            status: r.conversionAction?.status,
+            category: r.conversionAction?.category,
+          };
+        })
+        .filter((c) => c.id);
+
+      return { conversions };
+    } catch (err) {
+      return {
+        conversions: [],
+        error:
+          err instanceof Error
+            ? err.message
+            : "Listare conversion actions eșuată",
+      };
+    }
   },
 });

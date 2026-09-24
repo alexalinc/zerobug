@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { ConvexClientProvider } from "@/components/convex-client-provider";
 import { GclidCapture } from "@/components/gclid-capture";
+import { CookiePanel } from "@/components/ui/cookie-banner-1";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -48,6 +49,7 @@ export default function RootLayout({
         <ConvexClientProvider>
           <GclidCapture />
           {children}
+          <CookiePanel />
         </ConvexClientProvider>
       </body>
     </html>

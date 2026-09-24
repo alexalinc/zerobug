@@ -13,7 +13,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { MeshGradientShader } from "@/components/ui/mesh-gradient-shader";
 import { TextGenerateEffect } from "@/components/ui/text-generate-effect";
 import { cn } from "@/lib/utils";
-import { getAdsClickIdsForLead } from "@/lib/gclid";
+import {
+  getAdsClickIdsForLead,
+  getMarketingConsentForLead,
+} from "@/lib/gclid";
 
 const TESTIMONIALS = [
   {
@@ -90,6 +93,7 @@ export function ContactSection() {
         email: String(fd.get("email") || ""),
         company: String(fd.get("company") || "") || undefined,
         message: String(fd.get("message") || "") || undefined,
+        marketingConsent: getMarketingConsentForLead(),
         ...adsIds,
       });
       setStatus("ok");
