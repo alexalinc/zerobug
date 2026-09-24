@@ -126,14 +126,14 @@ export const PAGE_SEO = {
   termeni: {
     title: "Termeni și condiții",
     description:
-      "Termenii ZeroBug pentru oferte, dezvoltare, mentenanță lunară, facturare, plăți și anulare abonament.",
+      "Termenii ZeroBug (SC AXP GLOBAL RETAIL SRL): oferte, mentenanță, plăți Stripe, facturare, integrări Google OAuth / Ads și limitarea răspunderii.",
     path: "/termeni",
     image: DEFAULT_OG_IMAGE,
   },
   privacy: {
     title: "Politica de confidențialitate",
     description:
-      "Cum prelucrează ZeroBug (SC AXP GLOBAL RETAIL SRL) datele personale din formulare, oferte și facturare — GDPR.",
+      "GDPR ZeroBug: ce date prelucrăm, temeiuri, cookie gclid, Google OAuth / Data Manager (Limited Use), drepturile tale și contact ANSPDCP.",
     path: "/politica-confidentialitate",
     image: DEFAULT_OG_IMAGE,
   },
