@@ -28,13 +28,7 @@ export default function SeoAdminPage() {
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const siteUrl = useMemo(() => {
-    if (typeof window !== "undefined") {
-      return process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "") ||
-        window.location.origin;
-    }
-    return getSiteUrl();
-  }, []);
+  const siteUrl = useMemo(() => getSiteUrl(), []);
 
   const entries = useMemo(() => getSitemapEntries(), []);
 
