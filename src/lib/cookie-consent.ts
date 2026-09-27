@@ -43,6 +43,11 @@ export function hasMarketingConsent(): boolean {
   return Boolean(prefs?.marketing);
 }
 
+export function hasAnalyticsConsent(): boolean {
+  const prefs = getCookiePreferences();
+  return Boolean(prefs?.analytics);
+}
+
 export function setCookiePreferences(prefs: CookiePrefs) {
   if (typeof window === "undefined") return;
   localStorage.setItem(

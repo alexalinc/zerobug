@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useMutation } from "convex/react";
 import { api } from "@convex/_generated/api";
 import { Check } from "lucide-react";
@@ -14,6 +14,10 @@ import {
   getAdsClickIdsForLead,
   getMarketingConsentForLead,
 } from "@/lib/gclid";
+import {
+  useQuoteFunnel,
+  useQuoteFunnelVisibility,
+} from "@/components/use-quote-funnel";
 
 const BUDGET_MIN = 500;
 const BUDGET_MAX = 25000;
@@ -95,6 +99,10 @@ export function ServiceQuoteConfigurator({
   const [budget, setBudget] = useState(3000);
   const [status, setStatus] = useState<"idle" | "ok" | "err">("idle");
   const [loading, setLoading] = useState(false);
+  const formRef = useRef<HTMLFormElement>(null);
+  const { trackView, trackStart, trackStep, trackField, trackSubmit } =
+    useQuoteFunnel("service_quote");
+  useQuoteFunnelVisibility(formRef, trackView);
 
   const progress = useMemo(
     () => ((budget - BUDGET_MIN) / (BUDGET_MAX - BUDGET_MIN)) * 100,
@@ -102,6 +110,8 @@ export function ServiceQuoteConfigurator({
   );
 
   function toggle(service: string) {
+    trackStart("services", "Alegere servicii");
+    trackStep("services", "Alegere servicii");
     setSelected((prev) =>
       prev.includes(service)
         ? prev.filter((s) => s !== service)
@@ -134,6 +144,7 @@ export function ServiceQuoteConfigurator({
         marketingConsent: getMarketingConsentForLead(),
         ...getAdsClickIdsForLead(),
       });
+      trackSubmit();
       setStatus("ok");
       setSelected([]);
       setBudget(3000);
@@ -147,6 +158,7 @@ export function ServiceQuoteConfigurator({
 
   return (
     <form
+      ref={formRef}
       id={id}
       onSubmit={onSubmit}
       className="space-y-10 md:space-y-12"
@@ -237,7 +249,10 @@ export function ServiceQuoteConfigurator({
               max={BUDGET_MAX}
               step={BUDGET_STEP}
               value={budget}
-              onChange={(e) => setBudget(Number(e.target.value))}
+              onChange={(e) => {
+                trackStep("budget", "Buget");
+                setBudget(Number(e.target.value));
+              }}
               className="relative z-10 h-2 w-full cursor-pointer appearance-none bg-transparent accent-[color:var(--brand)] [&::-webkit-slider-thumb]:h-5 [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-[color:var(--brand)] [&::-webkit-slider-thumb]:shadow-[0_0_0_4px_rgba(34,197,94,0.25)] [&::-moz-range-thumb]:h-5 [&::-moz-range-thumb]:w-5 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:border-0 [&::-moz-range-thumb]:bg-[color:var(--brand)]"
               aria-label="Buget estimat"
             />
@@ -264,7 +279,16 @@ export function ServiceQuoteConfigurator({
         <div className="mt-6 grid gap-4 sm:grid-cols-2">
           <div className="space-y-2">
             <Label htmlFor="sq-name">Nume *</Label>
-            <Input id="sq-name" name="name" required placeholder="Numele tău" />
+            <Input
+              id="sq-name"
+              name="name"
+              required
+              placeholder="Numele tău"
+              onFocus={() => {
+                trackStep("contact", "Date contact");
+                trackField("name", "contact");
+              }}
+            />
           </div>
           <div className="space-y-2">
             <Label htmlFor="sq-email">Email *</Label>
@@ -274,11 +298,17 @@ export function ServiceQuoteConfigurator({
               type="email"
               required
               placeholder="email@firma.ro"
+              onFocus={() => trackField("email", "contact")}
             />
           </div>
           <div className="space-y-2">
             <Label htmlFor="sq-phone">Telefon</Label>
-            <Input id="sq-phone" name="phone" placeholder="07xx xxx xxx" />
+            <Input
+              id="sq-phone"
+              name="phone"
+              placeholder="07xx xxx xxx"
+              onFocus={() => trackField("phone", "contact")}
+            />
           </div>
           <div className="space-y-2">
             <Label htmlFor="sq-company">Firmă</Label>
@@ -286,6 +316,7 @@ export function ServiceQuoteConfigurator({
               id="sq-company"
               name="company"
               placeholder="Denumire firmă"
+              onFocus={() => trackField("company", "contact")}
             />
           </div>
           <div className="space-y-2 sm:col-span-2">
@@ -295,6 +326,7 @@ export function ServiceQuoteConfigurator({
               name="message"
               rows={3}
               placeholder="Deadline, site existent, context proiect..."
+              onFocus={() => trackField("message", "contact")}
             />
           </div>
         </div>

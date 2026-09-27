@@ -8,6 +8,7 @@
  * @module
  */
 
+import type * as analytics from "../analytics.js";
 import type * as companies from "../companies.js";
 import type * as crons from "../crons.js";
 import type * as googleAds from "../googleAds.js";
@@ -17,6 +18,7 @@ import type * as invoicesActions from "../invoicesActions.js";
 import type * as invoicesBilling from "../invoicesBilling.js";
 import type * as leads from "../leads.js";
 import type * as leadsActions from "../leadsActions.js";
+import type * as lib_adminGate from "../lib/adminGate.js";
 import type * as lib_vat from "../lib/vat.js";
 import type * as seo from "../seo.js";
 import type * as settings from "../settings.js";
@@ -31,6 +33,7 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  analytics: typeof analytics;
   companies: typeof companies;
   crons: typeof crons;
   googleAds: typeof googleAds;
@@ -40,6 +43,7 @@ declare const fullApi: ApiFromModules<{
   invoicesBilling: typeof invoicesBilling;
   leads: typeof leads;
   leadsActions: typeof leadsActions;
+  "lib/adminGate": typeof lib_adminGate;
   "lib/vat": typeof lib_vat;
   seo: typeof seo;
   settings: typeof settings;

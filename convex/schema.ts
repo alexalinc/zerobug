@@ -198,4 +198,105 @@ export default defineSchema({
     sitemapLastGeneratedAt: v.optional(v.number()),
     updatedAt: v.number(),
   }).index("by_key", ["key"]),
+
+  /** First-party visitor sessions (source attribution + journey summary) */
+  analyticsSessions: defineTable({
+    visitorId: v.string(),
+    landingPath: v.string(),
+    referrer: v.optional(v.string()),
+    referrerHost: v.optional(v.string()),
+    utmSource: v.optional(v.string()),
+    utmMedium: v.optional(v.string()),
+    utmCampaign: v.optional(v.string()),
+    source: v.union(
+      v.literal("google_ads"),
+      v.literal("organic"),
+      v.literal("ai"),
+      v.literal("social"),
+      v.literal("referral"),
+      v.literal("direct"),
+      v.literal("email"),
+      v.literal("other"),
+    ),
+    startedAt: v.number(),
+    lastSeenAt: v.number(),
+    exitPath: v.optional(v.string()),
+    pageCount: v.number(),
+    quoteStarted: v.boolean(),
+    quoteSubmitted: v.boolean(),
+    quoteFormType: v.optional(
+      v.union(
+        v.literal("contact"),
+        v.literal("service_quote"),
+        v.literal("maintenance"),
+      ),
+    ),
+    quoteLastStep: v.optional(v.string()),
+    quoteAbandoned: v.optional(v.boolean()),
+  })
+    .index("by_started", ["startedAt"])
+    .index("by_visitor", ["visitorId"])
+    .index("by_source_started", ["source", "startedAt"]),
+
+  analyticsPageviews: defineTable({
+    sessionId: v.id("analyticsSessions"),
+    visitorId: v.string(),
+    path: v.string(),
+    title: v.optional(v.string()),
+    previousPath: v.optional(v.string()),
+    source: v.union(
+      v.literal("google_ads"),
+      v.literal("organic"),
+      v.literal("ai"),
+      v.literal("social"),
+      v.literal("referral"),
+      v.literal("direct"),
+      v.literal("email"),
+      v.literal("other"),
+    ),
+    enteredAt: v.number(),
+    leftAt: v.optional(v.number()),
+    durationMs: v.optional(v.number()),
+    isExit: v.optional(v.boolean()),
+  })
+    .index("by_entered", ["enteredAt"])
+    .index("by_session", ["sessionId"])
+    .index("by_path_entered", ["path", "enteredAt"]),
+
+  analyticsQuoteEvents: defineTable({
+    sessionId: v.id("analyticsSessions"),
+    visitorId: v.string(),
+    formType: v.union(
+      v.literal("contact"),
+      v.literal("service_quote"),
+      v.literal("maintenance"),
+    ),
+    event: v.union(
+      v.literal("view"),
+      v.literal("start"),
+      v.literal("step"),
+      v.literal("field"),
+      v.literal("abandon"),
+      v.literal("submit"),
+    ),
+    step: v.optional(v.string()),
+    stepLabel: v.optional(v.string()),
+    field: v.optional(v.string()),
+    path: v.string(),
+    source: v.union(
+      v.literal("google_ads"),
+      v.literal("organic"),
+      v.literal("ai"),
+      v.literal("social"),
+      v.literal("referral"),
+      v.literal("direct"),
+      v.literal("email"),
+      v.literal("other"),
+    ),
+    durationMs: v.optional(v.number()),
+    createdAt: v.number(),
+  })
+    .index("by_created", ["createdAt"])
+    .index("by_session", ["sessionId"])
+    .index("by_form_created", ["formType", "createdAt"]),
 });

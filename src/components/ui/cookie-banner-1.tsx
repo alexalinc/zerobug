@@ -37,7 +37,7 @@ const CookiePanel = (props: CookiePanelProps) => {
   const {
     title = "Acest site folosește cookie-uri",
     message =
-      "Folosim cookie-uri pentru ca site-ul să funcționeze. Cookie-urile de marketing le folosim doar dacă ești de acord, ca să măsurăm eficiența reclamelor.",
+      "Folosim cookie-uri pentru ca site-ul să funcționeze. Analitica și marketingul le activăm doar dacă ești de acord — ca să înțelegem traficul și eficiența reclamelor.",
     acceptText = "Accept toate",
     customizeText = "Personalizează",
     icon = "cookie",
@@ -278,7 +278,7 @@ const CookiePanel = (props: CookiePanelProps) => {
               />
               <PrefRow
                 title="Analitică"
-                desc="Ne ajută să înțelegem utilizarea site-ului."
+                desc="Măsoară sursa traficului, paginile vizitate și funnel-ul cererii de ofertă."
                 field="analytics"
               />
               <PrefRow

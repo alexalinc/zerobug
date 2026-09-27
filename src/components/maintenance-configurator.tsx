@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation } from "convex/react";
 import { api } from "@convex/_generated/api";
 import {
@@ -36,6 +36,10 @@ import {
   type MaintenanceQuoteAnswers,
   type NeedId,
 } from "@/lib/maintenance-estimate";
+import {
+  useQuoteFunnel,
+  useQuoteFunnelVisibility,
+} from "@/components/use-quote-funnel";
 
 const STEPS = [
   { id: 1, label: "Site", icon: Globe2 },
@@ -150,15 +154,29 @@ export function MaintenanceConfigurator() {
   const [notes, setNotes] = useState("");
   const [status, setStatus] = useState<"idle" | "ok" | "err">("idle");
   const [loading, setLoading] = useState(false);
+  const rootRef = useRef<HTMLDivElement>(null);
+  const { trackView, trackStart, trackStep, trackField, trackSubmit } =
+    useQuoteFunnel("maintenance");
+  useQuoteFunnelVisibility(rootRef, trackView);
 
   const estimate = useMemo(() => estimateMaintenance(answers), [answers]);
   const range = formatEstimateRange(estimate);
 
+  useEffect(() => {
+    const label = STEPS.find((s) => s.id === step)?.label ?? `Pas ${step}`;
+    if (step === 1) {
+      trackStart("1", `Pas 1 — ${label}`);
+    }
+    trackStep(String(step), `Pas ${step} — ${label}`);
+  }, [step, trackStart, trackStep]);
+
   function patch(partial: Partial<MaintenanceQuoteAnswers>) {
+    if (step === 1) trackStart("1", "Pas 1 — Site");
     setAnswers((prev) => ({ ...prev, ...partial }));
   }
 
   function toggleNeed(id: NeedId) {
+    trackStep("4", "Pas 4 — Nevoi");
     setAnswers((prev) => ({
       ...prev,
       needs: prev.needs.includes(id)
@@ -215,6 +233,7 @@ export function MaintenanceConfigurator() {
         ...getAdsClickIdsForLead(),
         marketingConsent: getMarketingConsentForLead(),
       });
+      trackSubmit();
       setStatus("ok");
     } catch {
       setStatus("err");
@@ -224,7 +243,7 @@ export function MaintenanceConfigurator() {
   }
 
   return (
-    <div className="relative">
+    <div className="relative" ref={rootRef}>
       <div className="mb-8 flex flex-wrap gap-2">
         {STEPS.map((s) => {
           const Icon = s.icon;
@@ -498,6 +517,7 @@ export function MaintenanceConfigurator() {
                     id="name"
                     required
                     value={name}
+                    onFocus={() => trackField("name", "5")}
                     onChange={(e) => setName(e.target.value)}
                   />
                 </div>
@@ -508,6 +528,7 @@ export function MaintenanceConfigurator() {
                     type="email"
                     required
                     value={email}
+                    onFocus={() => trackField("email", "5")}
                     onChange={(e) => setEmail(e.target.value)}
                   />
                 </div>
@@ -516,6 +537,7 @@ export function MaintenanceConfigurator() {
                   <Input
                     id="phone"
                     value={phone}
+                    onFocus={() => trackField("phone", "5")}
                     onChange={(e) => setPhone(e.target.value)}
                   />
                 </div>
@@ -524,6 +546,7 @@ export function MaintenanceConfigurator() {
                   <Input
                     id="company"
                     value={company}
+                    onFocus={() => trackField("company", "5")}
                     onChange={(e) => setCompany(e.target.value)}
                   />
                 </div>
@@ -535,6 +558,7 @@ export function MaintenanceConfigurator() {
                   rows={4}
                   placeholder="Deadline, probleme curente, preferințe…"
                   value={notes}
+                  onFocus={() => trackField("notes", "5")}
                   onChange={(e) => setNotes(e.target.value)}
                 />
               </div>
