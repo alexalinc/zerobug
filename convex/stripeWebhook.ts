@@ -3,9 +3,16 @@ import { action } from "./_generated/server";
 import { internal } from "./_generated/api";
 import { requireBridgeSecret } from "./lib/adminGate";
 
+const ALLOWED_STRIPE_EVENTS = new Set([
+  "customer.subscription.created",
+  "customer.subscription.updated",
+  "invoice.paid",
+]);
+
 /**
  * Bridge from Next.js Stripe webhook → Convex.
- * Requires STRIPE_WEBHOOK_SECRET so the public Convex action cannot be forged.
+ * Uses CONVEX_BRIDGE_SECRET (NOT the Stripe signing secret) so a leaked
+ * webhook signing key alone cannot forge Convex billing mutations.
  */
 export const process = action({
   args: {
@@ -15,7 +22,13 @@ export const process = action({
   },
   returns: v.null(),
   handler: async (ctx, args) => {
-    requireBridgeSecret(args.bridgeSecret, "STRIPE_WEBHOOK_SECRET");
+    requireBridgeSecret(args.bridgeSecret, "CONVEX_BRIDGE_SECRET");
+    if (!ALLOWED_STRIPE_EVENTS.has(args.type)) {
+      return null;
+    }
+    if (args.data == null || typeof args.data !== "object") {
+      throw new Error("Unauthorized");
+    }
     await ctx.runAction(internal.stripe.handleWebhookEvent, {
       type: args.type,
       data: args.data,

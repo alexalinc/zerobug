@@ -16,37 +16,17 @@ import {
 } from "@/lib/seo";
 import { cookies } from "next/headers";
 
-async function regenerateAllSeo(auth: {
-  sessionToken?: string;
-  bridgeSecret?: string;
-}) {
-  const url = process.env.NEXT_PUBLIC_CONVEX_URL;
-  if (!url) {
-    throw new Error("NEXT_PUBLIC_CONVEX_URL lipsește");
-  }
-
-  const client = new ConvexHttpClient(url);
-
-  await client.mutation(api.seo.upsert, {
-    sessionToken: auth.sessionToken,
-    bridgeSecret: auth.bridgeSecret,
-    robotsTxt: DEFAULT_ROBOTS_TXT,
-    llmsTxt: DEFAULT_LLMS_TXT,
-  });
-  await client.mutation(api.seo.markSitemapGenerated, {
-    sessionToken: auth.sessionToken,
-    bridgeSecret: auth.bridgeSecret,
-  });
-
+function revalidateSeoPaths() {
   revalidatePath("/sitemap.xml");
   revalidatePath("/robots.txt");
   revalidatePath("/llms.txt");
   revalidatePath("/servicii");
   revalidatePath("/servicii/oras");
+}
 
+function seoResult() {
   const siteUrl = getSiteUrl();
   const entries = getSitemapEntries();
-
   return {
     ok: true as const,
     regeneratedAt: Date.now(),
@@ -70,9 +50,24 @@ export async function POST() {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  const url = process.env.NEXT_PUBLIC_CONVEX_URL;
+  if (!url) {
+    return NextResponse.json(
+      { error: "NEXT_PUBLIC_CONVEX_URL lipsește" },
+      { status: 500 },
+    );
+  }
+
   try {
-    const result = await regenerateAllSeo({ sessionToken });
-    return NextResponse.json(result);
+    const client = new ConvexHttpClient(url);
+    await client.mutation(api.seo.upsert, {
+      sessionToken,
+      robotsTxt: DEFAULT_ROBOTS_TXT,
+      llmsTxt: DEFAULT_LLMS_TXT,
+    });
+    await client.mutation(api.seo.markSitemapGenerated, { sessionToken });
+    revalidateSeoPaths();
+    return NextResponse.json(seoResult());
   } catch (error) {
     return NextResponse.json(
       {
@@ -87,7 +82,7 @@ export async function POST() {
 /** Weekly cron (Vercel Cron) — always requires CRON_SECRET */
 export async function GET(req: NextRequest) {
   const secret = process.env.CRON_SECRET;
-  if (!secret || secret.length < 16) {
+  if (!secret || secret.length < 24) {
     return NextResponse.json(
       { error: "CRON_SECRET not configured" },
       { status: 500 },
@@ -98,9 +93,22 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  const url = process.env.NEXT_PUBLIC_CONVEX_URL;
+  if (!url) {
+    return NextResponse.json(
+      { error: "NEXT_PUBLIC_CONVEX_URL lipsește" },
+      { status: 500 },
+    );
+  }
+
   try {
-    const result = await regenerateAllSeo({ bridgeSecret: secret });
-    return NextResponse.json(result);
+    const client = new ConvexHttpClient(url);
+    // Fixed templates only — no caller-controlled SEO body
+    await client.mutation(api.seo.resetDefaultsFromCron, {
+      bridgeSecret: secret,
+    });
+    revalidateSeoPaths();
+    return NextResponse.json(seoResult());
   } catch (error) {
     return NextResponse.json(
       {

@@ -2,6 +2,7 @@
 
 import {
   useAdminSessionToken,
+  useAdminSession,
   withAdminToken,
 } from "@/components/admin-session-provider";
 
@@ -49,6 +50,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const token = useAdminSessionToken();
+  const { clear: clearAdminSession } = useAdminSession();
   const issuer = useQuery(api.settings.getIssuer, withAdminToken(token));
   const [gitStatus, setGitStatus] = useState<GitStatus | null>(null);
   const [pushing, setPushing] = useState(false);
@@ -57,7 +59,10 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
   const [open, setOpen] = useState(false);
 
   const githubUrl =
-    issuer?.githubRepoUrl || "https://github.com/alexalinc/zerobug";
+    issuer?.githubRepoUrl &&
+    /^https:\/\/(www\.)?github\.com\//i.test(issuer.githubRepoUrl)
+      ? issuer.githubRepoUrl
+      : "https://github.com/alexalinc/zerobug";
 
   async function refreshGitStatus() {
     try {
@@ -80,6 +85,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ action: "logout" }),
     });
+    clearAdminSession();
     router.push("/admin/login");
     router.refresh();
   }

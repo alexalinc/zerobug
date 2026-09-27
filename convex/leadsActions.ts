@@ -39,12 +39,22 @@ export const notifyLeadEmail = internalAction({
           ? "Mentenanță"
           : "Contact";
 
+    const safeName = args.name.replace(/[\r\n\0]/g, " ").slice(0, 120);
+    const safeCompany = (args.company || "")
+      .replace(/[\r\n\0]/g, " ")
+      .slice(0, 200);
+    const safeEmail = args.email.replace(/[\r\n\0\s]/g, "").slice(0, 254);
+    if (!safeEmail.includes("@")) {
+      console.error("Invalid replyTo email — skipping lead notification");
+      return null;
+    }
+
     const rows = [
       ["Tip", typeLabel],
-      ["Nume", args.name],
-      ["Email", args.email],
+      ["Nume", safeName],
+      ["Email", safeEmail],
       ["Telefon", args.phone || "—"],
-      ["Firmă", args.company || "—"],
+      ["Firmă", safeCompany || "—"],
       ["Categorie", args.serviceCategory || "—"],
       ["Serviciu", args.serviceName || "—"],
       ["Plan sugerat", args.planKey || "—"],
@@ -80,8 +90,8 @@ export const notifyLeadEmail = internalAction({
     await resend.emails.send({
       from,
       to,
-      replyTo: args.email,
-      subject: `[ZeroBug] ${typeLabel}: ${args.name}${args.company ? ` — ${args.company}` : ""}`,
+      replyTo: safeEmail,
+      subject: `[ZeroBug] ${typeLabel}: ${safeName}${safeCompany ? ` — ${safeCompany}` : ""}`,
       html,
     });
 

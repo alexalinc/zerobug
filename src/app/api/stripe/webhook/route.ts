@@ -38,10 +38,18 @@ export async function POST(req: NextRequest) {
 
   try {
     const client = new ConvexHttpClient(convexUrl);
+    const bridgeSecret = process.env.CONVEX_BRIDGE_SECRET;
+    if (!bridgeSecret || bridgeSecret.length < 24) {
+      console.error("CONVEX_BRIDGE_SECRET not configured");
+      return NextResponse.json(
+        { error: "Bridge not configured" },
+        { status: 500 },
+      );
+    }
     await client.action(api.stripeWebhook.process, {
       type: event.type,
       data: event.data.object,
-      bridgeSecret: secret,
+      bridgeSecret,
     });
   } catch (err) {
     console.error("Webhook processing failed", err);

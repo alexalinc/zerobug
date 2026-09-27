@@ -12,6 +12,9 @@ const WEAK_SECRETS = new Set([
   "changeme",
   "password",
   "admin",
+  "changeme-use-12plus-chars-in-prod",
+  "change-this-long-random-secret",
+  "change-this-long-random-cron-secret",
 ]);
 
 function isProductionLike() {
@@ -26,12 +29,16 @@ function getSecret() {
   const secret =
     process.env.ADMIN_SESSION_SECRET || process.env.ADMIN_PASSWORD;
   if (isProductionLike()) {
-    if (!secret || WEAK_SECRETS.has(secret)) {
+    if (!secret || WEAK_SECRETS.has(secret) || secret.length < 24) {
       throw new Error(
-        "ADMIN_SESSION_SECRET must be set to a strong value in production",
+        "ADMIN_SESSION_SECRET must be set to a strong value (24+ chars) in production",
       );
     }
     return new TextEncoder().encode(secret);
+  }
+  if (secret && (WEAK_SECRETS.has(secret) || secret.length < 16)) {
+    // Still allow local fallback, but never use an explicitly weak custom secret
+    return new TextEncoder().encode(DEV_FALLBACK_SECRET);
   }
   return new TextEncoder().encode(secret || DEV_FALLBACK_SECRET);
 }
@@ -39,7 +46,12 @@ function getSecret() {
 async function verifySessionToken(token: string | undefined): Promise<boolean> {
   if (!token) return false;
   try {
-    await jwtVerify(token, getSecret());
+    const { payload } = await jwtVerify(token, getSecret());
+    if (payload.role !== "admin") return false;
+    const minIat = Number(process.env.ADMIN_SESSION_MIN_IAT || "0");
+    if (minIat > 0 && typeof payload.iat === "number" && payload.iat < minIat) {
+      return false;
+    }
     return true;
   } catch {
     return false;
@@ -58,19 +70,21 @@ function safeEqual(a: string, b: string) {
 }
 
 export async function createAdminSession(rememberMe = false) {
-  const days = rememberMe ? 30 : 1;
+  // Short-lived by default; rememberMe still capped (stolen JWT window)
+  const hours = rememberMe ? 24 * 7 : 8;
   const token = await new SignJWT({ role: "admin" })
     .setProtectedHeader({ alg: "HS256" })
     .setIssuedAt()
-    .setExpirationTime(`${days}d`)
+    .setExpirationTime(`${hours}h`)
+    .setJti(crypto.randomUUID())
     .sign(getSecret());
   const jar = await cookies();
   jar.set(COOKIE, token, {
     httpOnly: true,
     sameSite: "lax",
-    secure: process.env.NODE_ENV === "production",
+    secure: process.env.NODE_ENV === "production" || process.env.VERCEL === "1",
     path: "/",
-    maxAge: 60 * 60 * 24 * days,
+    maxAge: 60 * 60 * hours,
   });
 }
 
