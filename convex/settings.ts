@@ -138,21 +138,40 @@ export const upsertIssuer = mutation({
     const next = Math.max(1, Math.floor(args.invoiceNextNumber));
     const year = args.year;
 
+    function assertSafeHttpUrl(value: string | undefined, label: string) {
+      if (!value) return undefined;
+      const trimmed = value.trim();
+      if (!trimmed) return undefined;
+      let parsed: URL;
+      try {
+        parsed = new URL(trimmed);
+      } catch {
+        throw new Error(`${label} invalid`);
+      }
+      if (parsed.protocol !== "https:" && parsed.protocol !== "http:") {
+        throw new Error(`${label} must be http(s)`);
+      }
+      return trimmed.slice(0, 500);
+    }
+
     const payload = {
-      companyName: args.companyName,
-      cui: args.cui,
-      regCom: args.regCom,
-      address: args.address,
-      phone: args.phone,
-      email: args.email,
-      bank: args.bank,
-      iban: args.iban,
-      invoiceSeries: args.invoiceSeries.trim().toUpperCase() || "ZB",
+      companyName: args.companyName.slice(0, 200),
+      cui: args.cui.slice(0, 40),
+      regCom: args.regCom.slice(0, 40),
+      address: args.address.slice(0, 300),
+      phone: args.phone.slice(0, 40),
+      email: args.email.slice(0, 254),
+      bank: args.bank.slice(0, 80),
+      iban: args.iban.slice(0, 64),
+      invoiceSeries: args.invoiceSeries.trim().toUpperCase().slice(0, 12) || "ZB",
       invoiceNextNumber: next,
-      brandName: args.brandName,
-      accountingEmail: args.accountingEmail,
-      githubRepoUrl: args.githubRepoUrl,
-      vercelDashboardUrl: args.vercelDashboardUrl,
+      brandName: args.brandName.slice(0, 80),
+      accountingEmail: args.accountingEmail?.slice(0, 254),
+      githubRepoUrl: assertSafeHttpUrl(args.githubRepoUrl, "githubRepoUrl"),
+      vercelDashboardUrl: assertSafeHttpUrl(
+        args.vercelDashboardUrl,
+        "vercelDashboardUrl",
+      ),
     };
 
     const existing = await ctx.db

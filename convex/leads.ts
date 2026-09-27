@@ -5,9 +5,19 @@ import { requireAdminSession } from "./lib/adminGate";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const MAX_LEADS_PER_EMAIL_PER_HOUR = 5;
+const MAX_LEADS_GLOBAL_PER_HOUR = 40;
+
+/** Strip CR/LF and control chars used in email header injection. */
+function sanitizePlain(value: string, max: number) {
+  return value
+    .replace(/[\0\r\n\u2028\u2029]/g, " ")
+    .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "")
+    .trim()
+    .slice(0, max);
+}
 
 function clampStr(value: string, max: number) {
-  return value.trim().slice(0, max);
+  return sanitizePlain(value, max);
 }
 
 export const create = mutation({
@@ -64,6 +74,15 @@ export const create = mutation({
       (l) => l.createdAt >= hourAgo,
     ).length;
     if (recentCount >= MAX_LEADS_PER_EMAIL_PER_HOUR) {
+      throw new Error("Prea multe cereri. Încearcă din nou mai târziu.");
+    }
+
+    // Global soft cap — slows email-rotation abuse (not a substitute for WAF/CAPTCHA)
+    const recentGlobal = await ctx.db
+      .query("leads")
+      .withIndex("by_created", (q) => q.gte("createdAt", hourAgo))
+      .take(MAX_LEADS_GLOBAL_PER_HOUR + 1);
+    if (recentGlobal.length >= MAX_LEADS_GLOBAL_PER_HOUR) {
       throw new Error("Prea multe cereri. Încearcă din nou mai târziu.");
     }
 

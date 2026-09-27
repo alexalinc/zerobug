@@ -91,19 +91,15 @@ export const get = query({
 
 export const upsert = mutation({
   args: {
-    sessionToken: v.optional(v.string()),
-    bridgeSecret: v.optional(v.string()),
+    sessionToken: v.string(),
     robotsTxt: v.string(),
     llmsTxt: v.string(),
   },
   returns: v.id("seoSettings"),
   handler: async (ctx, args) => {
-    if (args.sessionToken) {
-      await requireAdminSession(args.sessionToken);
-    } else if (args.bridgeSecret) {
-      requireBridgeSecret(args.bridgeSecret, "CRON_SECRET");
-    } else {
-      throw new Error("Unauthorized");
+    await requireAdminSession(args.sessionToken);
+    if (args.robotsTxt.length > 50_000 || args.llmsTxt.length > 100_000) {
+      throw new Error("Conținut SEO prea mare");
     }
     const existing = await ctx.db
       .query("seoSettings")
@@ -128,19 +124,10 @@ export const upsert = mutation({
 });
 
 export const markSitemapGenerated = mutation({
-  args: {
-    sessionToken: v.optional(v.string()),
-    bridgeSecret: v.optional(v.string()),
-  },
+  args: { sessionToken: v.string() },
   returns: v.null(),
   handler: async (ctx, args) => {
-    if (args.sessionToken) {
-      await requireAdminSession(args.sessionToken);
-    } else if (args.bridgeSecret) {
-      requireBridgeSecret(args.bridgeSecret, "CRON_SECRET");
-    } else {
-      throw new Error("Unauthorized");
-    }
+    await requireAdminSession(args.sessionToken);
     const existing = await ctx.db
       .query("seoSettings")
       .withIndex("by_key", (q) => q.eq("key", "main"))
@@ -148,6 +135,40 @@ export const markSitemapGenerated = mutation({
     const now = Date.now();
     if (existing) {
       await ctx.db.patch(existing._id, {
+        sitemapLastGeneratedAt: now,
+        updatedAt: now,
+      });
+    } else {
+      await ctx.db.insert("seoSettings", {
+        key: "main",
+        robotsTxt: DEFAULT_ROBOTS,
+        llmsTxt: DEFAULT_LLMS,
+        sitemapLastGeneratedAt: now,
+        updatedAt: now,
+      });
+    }
+    return null;
+  },
+});
+
+/**
+ * Cron-only path: writes fixed templates (no arbitrary content from caller).
+ * Auth via CRON_SECRET — never accept robots/llms body over the bridge.
+ */
+export const resetDefaultsFromCron = mutation({
+  args: { bridgeSecret: v.string() },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    requireBridgeSecret(args.bridgeSecret, "CRON_SECRET");
+    const existing = await ctx.db
+      .query("seoSettings")
+      .withIndex("by_key", (q) => q.eq("key", "main"))
+      .unique();
+    const now = Date.now();
+    if (existing) {
+      await ctx.db.patch(existing._id, {
+        robotsTxt: DEFAULT_ROBOTS,
+        llmsTxt: DEFAULT_LLMS,
         sitemapLastGeneratedAt: now,
         updatedAt: now,
       });

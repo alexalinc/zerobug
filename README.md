@@ -31,17 +31,17 @@ npm run seed
 1. Mergi pe [vercel.com/new](https://vercel.com/new) și importă `alexalinc/zerobug`.
 2. Creează un proiect Convex cloud (`npx convex login` + `npx convex deploy`) și setează pe Vercel **și** în Convex Dashboard:
    - `NEXT_PUBLIC_CONVEX_URL`
-   - `ADMIN_USERNAME`, `ADMIN_PASSWORD` (min. 12 caractere), `ADMIN_SESSION_SECRET` (secret puternic, distinct)
-   - `CRON_SECRET` (obligatoriu — pe Vercel și în Convex; cron-ul săptămânal refuză request-uri fără el)
-   - `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET` (**și în Convex** — bridge-ul webhook verifică același secret)
+   - `ADMIN_USERNAME`, `ADMIN_PASSWORD` (min. 12 caractere), `ADMIN_SESSION_SECRET` (min. 24 caractere, distinct)
+   - `CRON_SECRET` (min. 24 caractere — pe Vercel și Convex)
+   - `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`
+   - `CONVEX_BRIDGE_SECRET` (min. 24 caractere, **diferit** de webhook secret — pe Vercel și Convex)
    - `RESEND_API_KEY`, `RESEND_FROM_EMAIL`
 3. Webhook Stripe → `https://<domeniu>/api/stripe/webhook`
 4. În Admin → Setări, confirmă URL-ul GitHub (butonul floating).
 
 Repo: https://github.com/alexalinc/zerobug
 
-Admin: `/admin/login` — fără sesiune JWT validă dashboard-ul redirecționează la login. Funcțiile Convex de admin cer `sessionToken`.
-
+Admin: `/admin/login` — fără sesiune JWT validă dashboard-ul redirecționează la login. Funcțiile Convex de admin cer `sessionToken`. Pentru invalidare globală a sesiunilor, setează `ADMIN_SESSION_MIN_IAT` (unix seconds) pe Vercel + Convex.
 
 ## Stripe webhook
 

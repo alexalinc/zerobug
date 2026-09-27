@@ -97,7 +97,11 @@ export async function POST(req: NextRequest) {
   }
 
   const message =
-    (typeof body.message === "string" && body.message.trim()) ||
+    (typeof body.message === "string" &&
+      body.message
+        .replace(/[\0\r\n]/g, " ")
+        .trim()
+        .slice(0, 200)) ||
     `Admin push ${new Date().toISOString().slice(0, 19).replace("T", " ")}`;
 
   try {
