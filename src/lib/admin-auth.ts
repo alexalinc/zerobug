@@ -5,12 +5,35 @@ import type { NextRequest } from "next/server";
 
 const COOKIE = "zb_admin_session";
 
+const DEV_FALLBACK_SECRET = "zerobug-dev-secret-change-me";
+const WEAK_SECRETS = new Set([
+  DEV_FALLBACK_SECRET,
+  "zerobug-admin",
+  "changeme",
+  "password",
+  "admin",
+]);
+
+function isProductionLike() {
+  return (
+    process.env.NODE_ENV === "production" ||
+    process.env.VERCEL === "1" ||
+    Boolean(process.env.VERCEL_ENV)
+  );
+}
+
 function getSecret() {
   const secret =
-    process.env.ADMIN_SESSION_SECRET ||
-    process.env.ADMIN_PASSWORD ||
-    "zerobug-dev-secret-change-me";
-  return new TextEncoder().encode(secret);
+    process.env.ADMIN_SESSION_SECRET || process.env.ADMIN_PASSWORD;
+  if (isProductionLike()) {
+    if (!secret || WEAK_SECRETS.has(secret)) {
+      throw new Error(
+        "ADMIN_SESSION_SECRET must be set to a strong value in production",
+      );
+    }
+    return new TextEncoder().encode(secret);
+  }
+  return new TextEncoder().encode(secret || DEV_FALLBACK_SECRET);
 }
 
 async function verifySessionToken(token: string | undefined): Promise<boolean> {
@@ -67,9 +90,19 @@ export async function isAdminAuthenticatedRequest(req: NextRequest) {
 }
 
 export function getAdminCredentials() {
+  const username = process.env.ADMIN_USERNAME || "admin";
+  const password = process.env.ADMIN_PASSWORD;
+  if (isProductionLike()) {
+    if (!password || WEAK_SECRETS.has(password) || password.length < 12) {
+      throw new Error(
+        "ADMIN_PASSWORD must be set to a strong value (12+ chars) in production",
+      );
+    }
+    return { username, password };
+  }
   return {
-    username: process.env.ADMIN_USERNAME || "admin",
-    password: process.env.ADMIN_PASSWORD || "zerobug-admin",
+    username,
+    password: password || "zerobug-admin",
   };
 }
 

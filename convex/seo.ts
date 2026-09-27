@@ -1,5 +1,6 @@
 import { v } from "convex/values";
 import { mutation, query, internalMutation } from "./_generated/server";
+import { requireAdminSession, requireBridgeSecret } from "./lib/adminGate";
 
 const DEFAULT_ROBOTS = `User-agent: *
 Allow: /
@@ -90,11 +91,20 @@ export const get = query({
 
 export const upsert = mutation({
   args: {
+    sessionToken: v.optional(v.string()),
+    bridgeSecret: v.optional(v.string()),
     robotsTxt: v.string(),
     llmsTxt: v.string(),
   },
   returns: v.id("seoSettings"),
   handler: async (ctx, args) => {
+    if (args.sessionToken) {
+      await requireAdminSession(args.sessionToken);
+    } else if (args.bridgeSecret) {
+      requireBridgeSecret(args.bridgeSecret, "CRON_SECRET");
+    } else {
+      throw new Error("Unauthorized");
+    }
     const existing = await ctx.db
       .query("seoSettings")
       .withIndex("by_key", (q) => q.eq("key", "main"))
@@ -118,9 +128,19 @@ export const upsert = mutation({
 });
 
 export const markSitemapGenerated = mutation({
-  args: {},
+  args: {
+    sessionToken: v.optional(v.string()),
+    bridgeSecret: v.optional(v.string()),
+  },
   returns: v.null(),
-  handler: async (ctx) => {
+  handler: async (ctx, args) => {
+    if (args.sessionToken) {
+      await requireAdminSession(args.sessionToken);
+    } else if (args.bridgeSecret) {
+      requireBridgeSecret(args.bridgeSecret, "CRON_SECRET");
+    } else {
+      throw new Error("Unauthorized");
+    }
     const existing = await ctx.db
       .query("seoSettings")
       .withIndex("by_key", (q) => q.eq("key", "main"))
@@ -172,9 +192,10 @@ export const markSitemapGeneratedInternal = internalMutation({
 });
 
 export const seedDefaults = mutation({
-  args: {},
+  args: { sessionToken: v.string() },
   returns: v.null(),
-  handler: async (ctx) => {
+  handler: async (ctx, args) => {
+    await requireAdminSession(args.sessionToken);
     const existing = await ctx.db
       .query("seoSettings")
       .withIndex("by_key", (q) => q.eq("key", "main"))

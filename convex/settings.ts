@@ -1,5 +1,12 @@
 import { v } from "convex/values";
-import { mutation, query, internalQuery } from "./_generated/server";
+import {
+  mutation,
+  query,
+  internalQuery,
+  internalMutation,
+  type MutationCtx,
+} from "./_generated/server";
+import { requireAdminSession } from "./lib/adminGate";
 
 const issuerDefaults = {
   key: "issuer" as const,
@@ -38,9 +45,13 @@ const issuerReturn = v.object({
 });
 
 export const getIssuer = query({
-  args: { year: v.optional(v.number()) },
+  args: {
+    sessionToken: v.string(),
+    year: v.optional(v.number()),
+  },
   returns: issuerReturn,
   handler: async (ctx, args) => {
+    await requireAdminSession(args.sessionToken);
     const existing = await ctx.db
       .query("settings")
       .withIndex("by_key", (q) => q.eq("key", "issuer"))
@@ -103,6 +114,7 @@ export const getIssuer = query({
 
 export const upsertIssuer = mutation({
   args: {
+    sessionToken: v.string(),
     companyName: v.string(),
     cui: v.string(),
     regCom: v.string(),
@@ -122,6 +134,7 @@ export const upsertIssuer = mutation({
   },
   returns: v.id("settings"),
   handler: async (ctx, args) => {
+    await requireAdminSession(args.sessionToken);
     const next = Math.max(1, Math.floor(args.invoiceNextNumber));
     const year = args.year;
 
@@ -175,93 +188,107 @@ export const upsertIssuer = mutation({
 });
 
 export const seedDefaults = mutation({
-  args: {},
+  args: { sessionToken: v.string() },
   returns: v.null(),
-  handler: async (ctx) => {
-    const existing = await ctx.db
-      .query("settings")
-      .withIndex("by_key", (q) => q.eq("key", "issuer"))
-      .unique();
-    if (!existing) {
-      await ctx.db.insert("settings", issuerDefaults);
-    } else {
-      const patch: {
-        accountingEmail?: string;
-        invoiceNextNumber?: number;
-      } = {};
-      if (!existing.accountingEmail) {
-        patch.accountingEmail = issuerDefaults.accountingEmail;
-      }
-      if (existing.invoiceNextNumber == null) {
-        patch.invoiceNextNumber = issuerDefaults.invoiceNextNumber;
-      }
-      if (Object.keys(patch).length > 0) {
-        await ctx.db.patch(existing._id, patch);
-      }
-    }
-
-    const plans = [
-      {
-        planKey: "starter",
-        name: "Starter",
-        priceNet: 19.99,
-        sites: 1,
-        description: "Mentenanță esențială pentru un site simplu.",
-        features: [
-          "1 website",
-          "Update-uri lunare de securitate",
-          "Backup săptămânal",
-          "Monitorizare uptime",
-          "Support pe email (48h)",
-        ],
-        active: true,
-      },
-      {
-        planKey: "pro",
-        name: "Pro",
-        priceNet: 49.99,
-        sites: 1,
-        description: "Pentru site-uri active sau magazine mici.",
-        features: [
-          "1 website (complexitate medie)",
-          "Update-uri + patch-uri de securitate",
-          "Backup zilnic",
-          "Monitorizare uptime + alertă",
-          "Optimizări minore de performanță",
-          "Support prioritar (24h)",
-        ],
-        active: true,
-      },
-      {
-        planKey: "business",
-        name: "Business",
-        priceNet: 99.99,
-        sites: 3,
-        description: "Pentru magazine și platforme cu trafic real.",
-        features: [
-          "Până la 3 website-uri",
-          "Securitate avansată + malware cleanup",
-          "Backup zilnic offsite",
-          "SLA 4h pe incidente critice",
-          "Raport lunar de sănătate",
-          "Hotfix-uri minore incluse (2h/lună)",
-        ],
-        active: true,
-      },
-    ];
-
-    for (const plan of plans) {
-      const found = await ctx.db
-        .query("maintenancePlans")
-        .withIndex("by_plan_key", (q) => q.eq("planKey", plan.planKey))
-        .unique();
-      if (!found) {
-        await ctx.db.insert("maintenancePlans", plan);
-      }
-    }
+  handler: async (ctx, args) => {
+    await requireAdminSession(args.sessionToken);
+    await seedIssuerAndPlans(ctx);
     return null;
   },
 });
+
+export const seedDefaultsInternal = internalMutation({
+  args: {},
+  returns: v.null(),
+  handler: async (ctx) => {
+    await seedIssuerAndPlans(ctx);
+    return null;
+  },
+});
+
+async function seedIssuerAndPlans(ctx: MutationCtx) {
+  const existing = await ctx.db
+    .query("settings")
+    .withIndex("by_key", (q) => q.eq("key", "issuer"))
+    .unique();
+  if (!existing) {
+    await ctx.db.insert("settings", issuerDefaults);
+  } else {
+    const patch: {
+      accountingEmail?: string;
+      invoiceNextNumber?: number;
+    } = {};
+    if (!existing.accountingEmail) {
+      patch.accountingEmail = issuerDefaults.accountingEmail;
+    }
+    if (existing.invoiceNextNumber == null) {
+      patch.invoiceNextNumber = issuerDefaults.invoiceNextNumber;
+    }
+    if (Object.keys(patch).length > 0) {
+      await ctx.db.patch(existing._id, patch);
+    }
+  }
+
+  const plans = [
+    {
+      planKey: "starter",
+      name: "Starter",
+      priceNet: 19.99,
+      sites: 1,
+      description: "Mentenanță esențială pentru un site simplu.",
+      features: [
+        "1 website",
+        "Update-uri lunare de securitate",
+        "Backup săptămânal",
+        "Monitorizare uptime",
+        "Support pe email (48h)",
+      ],
+      active: true,
+    },
+    {
+      planKey: "pro",
+      name: "Pro",
+      priceNet: 49.99,
+      sites: 1,
+      description: "Pentru site-uri active sau magazine mici.",
+      features: [
+        "1 website (complexitate medie)",
+        "Update-uri + patch-uri de securitate",
+        "Backup zilnic",
+        "Monitorizare uptime + alertă",
+        "Optimizări minore de performanță",
+        "Support prioritar (24h)",
+      ],
+      active: true,
+    },
+    {
+      planKey: "business",
+      name: "Business",
+      priceNet: 99.99,
+      sites: 3,
+      description: "Pentru magazine și platforme cu trafic real.",
+      features: [
+        "Până la 3 website-uri",
+        "Securitate avansată + malware cleanup",
+        "Backup zilnic offsite",
+        "SLA 4h pe incidente critice",
+        "Raport lunar de sănătate",
+        "Hotfix-uri minore incluse (2h/lună)",
+      ],
+      active: true,
+    },
+  ];
+
+  for (const plan of plans) {
+    const found = await ctx.db
+      .query("maintenancePlans")
+      .withIndex("by_plan_key", (q) => q.eq("planKey", plan.planKey))
+      .unique();
+    if (!found) {
+      await ctx.db.insert("maintenancePlans", plan);
+    }
+  }
+}
 
 export const getIssuerInternal = internalQuery({
   args: {},

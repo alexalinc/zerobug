@@ -1,6 +1,5 @@
 import { v } from "convex/values";
 import {
-  mutation,
   query,
   internalMutation,
   internalQuery,
@@ -8,11 +7,13 @@ import {
 } from "./_generated/server";
 import { internal } from "./_generated/api";
 import { computeVatAmounts } from "./lib/vat";
+import { requireAdminSession } from "./lib/adminGate";
 
 export const list = query({
-  args: {},
+  args: { sessionToken: v.string() },
   returns: v.array(v.any()),
-  handler: async (ctx) => {
+  handler: async (ctx, args) => {
+    await requireAdminSession(args.sessionToken);
     const invoices = await ctx.db.query("invoices").order("desc").take(200);
     const result = [];
     for (const inv of invoices) {
@@ -24,9 +25,10 @@ export const list = query({
 });
 
 export const get = query({
-  args: { id: v.id("invoices") },
+  args: { sessionToken: v.string(), id: v.id("invoices") },
   returns: v.union(v.any(), v.null()),
   handler: async (ctx, args) => {
+    await requireAdminSession(args.sessionToken);
     const inv = await ctx.db.get(args.id);
     if (!inv) return null;
     const company = await ctx.db.get(inv.companyId);
@@ -35,9 +37,10 @@ export const get = query({
 });
 
 export const getPdfUrl = query({
-  args: { id: v.id("invoices") },
+  args: { sessionToken: v.string(), id: v.id("invoices") },
   returns: v.union(v.string(), v.null()),
   handler: async (ctx, args) => {
+    await requireAdminSession(args.sessionToken);
     const inv = await ctx.db.get(args.id);
     if (!inv?.pdfStorageId) return null;
     return await ctx.storage.getUrl(inv.pdfStorageId);
@@ -78,7 +81,7 @@ export const allocateNumber = internalMutation({
 
 /** Preview next number without allocating (client passes year). */
 export const peekNextNumber = query({
-  args: { year: v.number() },
+  args: { sessionToken: v.string(), year: v.number() },
   returns: v.object({
     series: v.string(),
     year: v.number(),
@@ -86,6 +89,7 @@ export const peekNextNumber = query({
     formatted: v.string(),
   }),
   handler: async (ctx, args) => {
+    await requireAdminSession(args.sessionToken);
     const issuer = await ctx.db
       .query("settings")
       .withIndex("by_key", (q) => q.eq("key", "issuer"))
@@ -107,7 +111,7 @@ export const peekNextNumber = query({
 
 /** Companies ready for manual invoice generation this period. */
 export const manualGenerationList = query({
-  args: { periodKey: v.string() },
+  args: { sessionToken: v.string(), periodKey: v.string() },
   returns: v.array(
     v.object({
       companyId: v.id("companies"),
@@ -126,6 +130,7 @@ export const manualGenerationList = query({
     }),
   ),
   handler: async (ctx, args) => {
+    await requireAdminSession(args.sessionToken);
     const companies = await ctx.db
       .query("companies")
       .withIndex("by_status", (q) => q.eq("status", "active"))
@@ -257,9 +262,10 @@ export const getInternal = internalQuery({
 });
 
 export const resendEmail = action({
-  args: { invoiceId: v.id("invoices") },
+  args: { sessionToken: v.string(), invoiceId: v.id("invoices") },
   returns: v.null(),
   handler: async (ctx, args) => {
+    await requireAdminSession(args.sessionToken);
     await ctx.runAction(internal.invoicesActions.sendEmailOnly, {
       invoiceId: args.invoiceId,
     });
@@ -268,7 +274,7 @@ export const resendEmail = action({
 });
 
 export const overviewStats = query({
-  args: {},
+  args: { sessionToken: v.string() },
   returns: v.object({
     companies: v.number(),
     activeCompanies: v.number(),
@@ -292,7 +298,8 @@ export const overviewStats = query({
       }),
     ),
   }),
-  handler: async (ctx) => {
+  handler: async (ctx, args) => {
+    await requireAdminSession(args.sessionToken);
     const companies = await ctx.db.query("companies").take(500);
     const subs = await ctx.db.query("subscriptions").take(500);
     const invoices = await ctx.db.query("invoices").take(500);

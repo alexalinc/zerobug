@@ -151,7 +151,8 @@ export default defineSchema({
   })
     .index("by_status", ["status"])
     .index("by_type", ["type"])
-    .index("by_created", ["createdAt"]),
+    .index("by_created", ["createdAt"])
+    .index("by_email", ["email"]),
 
   /** OAuth + destination for Google Ads Data Manager conversion uploads */
   googleAdsSettings: defineTable({

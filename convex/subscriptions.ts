@@ -1,6 +1,7 @@
 import { v } from "convex/values";
 import { mutation, query, internalMutation, internalQuery } from "./_generated/server";
 import type { Id } from "./_generated/dataModel";
+import { requireAdminSession } from "./lib/adminGate";
 
 export const listPlans = query({
   args: {},
@@ -12,17 +13,19 @@ export const listPlans = query({
 });
 
 export const listAll = query({
-  args: {},
+  args: { sessionToken: v.string() },
   returns: v.array(v.any()),
-  handler: async (ctx) => {
+  handler: async (ctx, args) => {
+    await requireAdminSession(args.sessionToken);
     return await ctx.db.query("subscriptions").order("desc").take(200);
   },
 });
 
 export const listWithDetails = query({
-  args: {},
+  args: { sessionToken: v.string() },
   returns: v.array(v.any()),
-  handler: async (ctx) => {
+  handler: async (ctx, args) => {
+    await requireAdminSession(args.sessionToken);
     const subs = await ctx.db.query("subscriptions").order("desc").take(200);
     const result = [];
     for (const sub of subs) {
@@ -36,11 +39,13 @@ export const listWithDetails = query({
 
 export const createManual = mutation({
   args: {
+    sessionToken: v.string(),
     companyId: v.id("companies"),
     planId: v.id("maintenancePlans"),
   },
   returns: v.id("subscriptions"),
   handler: async (ctx, args) => {
+    await requireAdminSession(args.sessionToken);
     return await ctx.db.insert("subscriptions", {
       companyId: args.companyId,
       planId: args.planId,
@@ -53,6 +58,7 @@ export const createManual = mutation({
 
 export const updateStatus = mutation({
   args: {
+    sessionToken: v.string(),
     id: v.id("subscriptions"),
     status: v.union(
       v.literal("active"),
@@ -64,6 +70,7 @@ export const updateStatus = mutation({
   },
   returns: v.null(),
   handler: async (ctx, args) => {
+    await requireAdminSession(args.sessionToken);
     await ctx.db.patch(args.id, { status: args.status });
     return null;
   },
@@ -213,11 +220,13 @@ export const getPlanByKey = internalQuery({
 
 export const setStripePriceId = mutation({
   args: {
+    sessionToken: v.string(),
     planKey: v.string(),
     stripePriceId: v.string(),
   },
   returns: v.null(),
   handler: async (ctx, args) => {
+    await requireAdminSession(args.sessionToken);
     const plan = await ctx.db
       .query("maintenancePlans")
       .withIndex("by_plan_key", (q) => q.eq("planKey", args.planKey))

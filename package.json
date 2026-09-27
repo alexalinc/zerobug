@@ -9,7 +9,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "seed": "CONVEX_AGENT_MODE=anonymous convex run settings:seedDefaults"
+    "seed": "CONVEX_AGENT_MODE=anonymous convex run settings:seedDefaultsInternal"
   },
   "dependencies": {
     "@auth/core": "^0.41.3",

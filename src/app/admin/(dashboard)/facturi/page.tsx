@@ -1,5 +1,10 @@
 "use client";
 
+import {
+  useAdminSessionToken,
+  withAdminToken,
+} from "@/components/admin-session-provider";
+
 import { useAction, useQuery } from "convex/react";
 import { api } from "@convex/_generated/api";
 import { Button } from "@/components/ui/button";
@@ -41,13 +46,18 @@ function emailLabel(status: string) {
 }
 
 export default function FacturiPage() {
+  const token = useAdminSessionToken();
   const periodKey = useMemo(() => currentPeriodKey(), []);
   const year = useMemo(() => Number(periodKey.split("-")[0]), [periodKey]);
-  const invoices = useQuery(api.invoices.list);
-  const nextNumber = useQuery(api.invoices.peekNextNumber, { year });
-  const manualList = useQuery(api.invoices.manualGenerationList, {
-    periodKey,
-  });
+  const invoices = useQuery(api.invoices.list, withAdminToken(token));
+  const nextNumber = useQuery(
+    api.invoices.peekNextNumber,
+    withAdminToken(token, { year }),
+  );
+  const manualList = useQuery(
+    api.invoices.manualGenerationList,
+    withAdminToken(token, { periodKey }),
+  );
   const generateForCompany = useAction(
     api.invoicesBilling.generateForCompany,
   );
@@ -59,10 +69,11 @@ export default function FacturiPage() {
   const [error, setError] = useState<string | null>(null);
 
   async function onGenerate(companyId: Id<"companies">) {
+    if (!token) return;
     setBusyId(companyId);
     setError(null);
     try {
-      await generateForCompany({ companyId, periodKey });
+      await generateForCompany({ sessionToken: token, companyId, periodKey });
     } catch (e) {
       setError(e instanceof Error ? e.message : "Generarea a eșuat");
     } finally {
@@ -71,10 +82,11 @@ export default function FacturiPage() {
   }
 
   async function onSend(invoiceId: Id<"invoices">) {
+    if (!token) return;
     setSendingId(invoiceId);
     setError(null);
     try {
-      await resend({ invoiceId });
+      await resend({ sessionToken: token, invoiceId });
     } catch (e) {
       setError(e instanceof Error ? e.message : "Trimiterea a eșuat");
     } finally {
@@ -239,6 +251,7 @@ export default function FacturiPage() {
               <InvoiceRow
                 key={inv._id}
                 inv={inv}
+                sessionToken={token}
                 sending={sendingId === inv._id}
                 onSend={() => onSend(inv._id)}
               />
@@ -262,6 +275,7 @@ export default function FacturiPage() {
 
 function InvoiceRow({
   inv,
+  sessionToken,
   sending,
   onSend,
 }: {
@@ -277,10 +291,14 @@ function InvoiceRow({
     emailError?: string;
     company?: { name?: string; email?: string } | null;
   };
+  sessionToken: string | null | undefined;
   sending: boolean;
   onSend: () => void;
 }) {
-  const pdfUrl = useQuery(api.invoices.getPdfUrl, { id: inv._id });
+  const pdfUrl = useQuery(
+    api.invoices.getPdfUrl,
+    withAdminToken(sessionToken, { id: inv._id }),
+  );
 
   return (
     <tr className="border-b border-white/5">

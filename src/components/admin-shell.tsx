@@ -1,5 +1,10 @@
 "use client";
 
+import {
+  useAdminSessionToken,
+  withAdminToken,
+} from "@/components/admin-session-provider";
+
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
@@ -43,7 +48,8 @@ type GitStatus = {
 export function AdminShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
-  const issuer = useQuery(api.settings.getIssuer, {});
+  const token = useAdminSessionToken();
+  const issuer = useQuery(api.settings.getIssuer, withAdminToken(token));
   const [gitStatus, setGitStatus] = useState<GitStatus | null>(null);
   const [pushing, setPushing] = useState(false);
   const [pushMsg, setPushMsg] = useState<string | null>(null);

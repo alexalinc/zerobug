@@ -5,6 +5,7 @@ import { internalAction, action } from "./_generated/server";
 import { internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
 import { VAT_RATE, computeVatAmounts, type VatMode } from "./lib/vat";
+import { requireAdminSession } from "./lib/adminGate";
 
 function periodKeyFromDate(d: Date) {
   const y = d.getFullYear();
@@ -165,11 +166,13 @@ export const generateForSubscription = internalAction({
 /** Generate invoice for a company using its monthlyAmount (no subscription required). */
 export const generateForCompany = action({
   args: {
+    sessionToken: v.string(),
     companyId: v.id("companies"),
     periodKey: v.optional(v.string()),
   },
   returns: v.union(v.id("invoices"), v.null()),
   handler: async (ctx, args): Promise<Id<"invoices"> | null> => {
+    await requireAdminSession(args.sessionToken);
     const company = await ctx.runQuery(internal.companies.getInternal, {
       id: args.companyId,
     });
@@ -272,10 +275,12 @@ export const runMonthlyBilling = internalAction({
 
 export const generateManual = action({
   args: {
+    sessionToken: v.string(),
     subscriptionId: v.id("subscriptions"),
   },
   returns: v.union(v.id("invoices"), v.null()),
   handler: async (ctx, args): Promise<Id<"invoices"> | null> => {
+    await requireAdminSession(args.sessionToken);
     const items: BillingItem[] = await ctx.runQuery(
       internal.subscriptions.getActiveForBilling,
       {},

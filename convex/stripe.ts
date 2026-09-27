@@ -24,6 +24,31 @@ export const createCheckoutSession = action({
   },
   returns: v.object({ url: v.union(v.string(), v.null()) }),
   handler: async (ctx, args) => {
+    const siteUrl = (
+      process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000"
+    ).replace(/\/$/, "");
+    function assertSameOrigin(url: string, label: string) {
+      let parsed: URL;
+      try {
+        parsed = new URL(url);
+      } catch {
+        throw new Error(`${label} invalid`);
+      }
+      const allowed = new URL(siteUrl);
+      if (parsed.origin !== allowed.origin) {
+        throw new Error(`${label} must match site origin`);
+      }
+    }
+    assertSameOrigin(args.successUrl, "successUrl");
+    assertSameOrigin(args.cancelUrl, "cancelUrl");
+
+    if (!args.email.includes("@") || args.email.length > 254) {
+      throw new Error("Email invalid");
+    }
+    if (args.companyName.trim().length < 2 || args.companyName.length > 200) {
+      throw new Error("Nume firmă invalid");
+    }
+
     const plan = await ctx.runQuery(internal.subscriptions.getPlanByKey, {
       planKey: args.planKey,
     });

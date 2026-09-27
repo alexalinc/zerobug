@@ -1,5 +1,10 @@
 "use client";
 
+import {
+  useAdminSessionToken,
+  withAdminToken,
+} from "@/components/admin-session-provider";
+
 import { useMutation, useQuery } from "convex/react";
 import { api } from "@convex/_generated/api";
 import { Button } from "@/components/ui/button";
@@ -31,7 +36,8 @@ function planLabel(planKey?: string) {
 }
 
 export default function LeaduriPage() {
-  const leads = useQuery(api.leads.list);
+  const token = useAdminSessionToken();
+  const leads = useQuery(api.leads.list, withAdminToken(token));
   const updateStatus = useMutation(api.leads.updateStatus);
   const retryGoogleAds = useMutation(api.googleAds.retryGoogleAdsSync);
 
@@ -179,15 +185,17 @@ export default function LeaduriPage() {
                             variant="outline"
                             className="mt-1 h-7 text-xs"
                             onClick={() =>
-                              void retryGoogleAds({ leadId: l._id }).catch(
-                                (err: unknown) => {
-                                  alert(
-                                    err instanceof Error
-                                      ? err.message
-                                      : "Retry eșuat",
-                                  );
-                                },
-                              )
+                              token &&
+                              void retryGoogleAds({
+                                sessionToken: token,
+                                leadId: l._id,
+                              }).catch((err: unknown) => {
+                                alert(
+                                  err instanceof Error
+                                    ? err.message
+                                    : "Retry eșuat",
+                                );
+                              })
                             }
                           >
                             Re-trimite
@@ -204,7 +212,14 @@ export default function LeaduriPage() {
                         key={s}
                         size="sm"
                         variant="outline"
-                        onClick={() => updateStatus({ id: l._id, status: s })}
+                        onClick={() =>
+                          token &&
+                          updateStatus({
+                            sessionToken: token,
+                            id: l._id,
+                            status: s,
+                          })
+                        }
                       >
                         {s}
                       </Button>

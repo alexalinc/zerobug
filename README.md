@@ -18,7 +18,7 @@ npm install
 npm run dev
 ```
 
-Admin: `/admin/login` — parola din `ADMIN_PASSWORD` (default `zerobug-admin` local).
+Admin: `/admin/login` — parola din `ADMIN_PASSWORD` (local default doar în development; în producție e obligatoriu un secret puternic).
 
 ## Seed planuri + date emitent
 
@@ -29,15 +29,18 @@ npm run seed
 ## Deploy pe Vercel
 
 1. Mergi pe [vercel.com/new](https://vercel.com/new) și importă `alexalinc/zerobug`.
-2. Creează un proiect Convex cloud (`npx convex login` + `npx convex deploy`) și setează pe Vercel:
+2. Creează un proiect Convex cloud (`npx convex login` + `npx convex deploy`) și setează pe Vercel **și** în Convex Dashboard:
    - `NEXT_PUBLIC_CONVEX_URL`
-   - `ADMIN_PASSWORD`, `ADMIN_SESSION_SECRET`
-   - `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`
+   - `ADMIN_USERNAME`, `ADMIN_PASSWORD` (min. 12 caractere), `ADMIN_SESSION_SECRET` (secret puternic, distinct)
+   - `CRON_SECRET` (obligatoriu — pe Vercel și în Convex; cron-ul săptămânal refuză request-uri fără el)
+   - `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET` (**și în Convex** — bridge-ul webhook verifică același secret)
    - `RESEND_API_KEY`, `RESEND_FROM_EMAIL`
 3. Webhook Stripe → `https://<domeniu>/api/stripe/webhook`
 4. În Admin → Setări, confirmă URL-ul GitHub (butonul floating).
 
 Repo: https://github.com/alexalinc/zerobug
+
+Admin: `/admin/login` — fără sesiune JWT validă dashboard-ul redirecționează la login. Funcțiile Convex de admin cer `sessionToken`.
 
 
 ## Stripe webhook

@@ -4,6 +4,7 @@ import { createHash } from "crypto";
 import { v } from "convex/values";
 import { action, internalAction } from "./_generated/server";
 import { internal } from "./_generated/api";
+import { requireAdminSession } from "./lib/adminGate";
 
 const DATA_MANAGER_INGEST =
   "https://datamanager.googleapis.com/v1/events:ingest";
@@ -376,6 +377,7 @@ const conversionItem = v.object({
 /** List ENABLED campaigns for the connected customer. */
 export const listCampaigns = action({
   args: {
+    sessionToken: v.string(),
     customerId: v.optional(v.string()),
     loginCustomerId: v.optional(v.string()),
   },
@@ -384,6 +386,7 @@ export const listCampaigns = action({
     error: v.optional(v.string()),
   }),
   handler: async (ctx, args) => {
+    await requireAdminSession(args.sessionToken);
     const settings = (await ctx.runQuery(
       internal.googleAds.getConnectionInternal,
       {},
@@ -449,6 +452,7 @@ export const listCampaigns = action({
 /** List conversion actions (goals) for selection. */
 export const listConversionActions = action({
   args: {
+    sessionToken: v.string(),
     customerId: v.optional(v.string()),
     loginCustomerId: v.optional(v.string()),
   },
@@ -457,6 +461,7 @@ export const listConversionActions = action({
     error: v.optional(v.string()),
   }),
   handler: async (ctx, args) => {
+    await requireAdminSession(args.sessionToken);
     const settings = (await ctx.runQuery(
       internal.googleAds.getConnectionInternal,
       {},
