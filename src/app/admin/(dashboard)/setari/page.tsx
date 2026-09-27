@@ -1,5 +1,10 @@
 "use client";
 
+import {
+  useAdminSessionToken,
+  withAdminToken,
+} from "@/components/admin-session-provider";
+
 import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { useAction, useMutation, useQuery } from "convex/react";
 import { useSearchParams } from "next/navigation";
@@ -24,11 +29,18 @@ export default function SetariPage() {
 }
 
 function SetariPageInner() {
+  const token = useAdminSessionToken();
   const year = useMemo(() => new Date().getFullYear(), []);
-  const issuer = useQuery(api.settings.getIssuer, { year });
+  const issuer = useQuery(
+    api.settings.getIssuer,
+    withAdminToken(token, { year }),
+  );
   const upsert = useMutation(api.settings.upsertIssuer);
   const seed = useMutation(api.settings.seedDefaults);
-  const googleConnection = useQuery(api.googleAds.getConnection);
+  const googleConnection = useQuery(
+    api.googleAds.getConnection,
+    withAdminToken(token),
+  );
   const updateGoogleConfig = useMutation(api.googleAds.updateConfig);
   const disconnectGoogle = useMutation(api.googleAds.disconnect);
   const listCampaigns = useAction(api.googleAdsActions.listCampaigns);
@@ -83,10 +95,11 @@ function SetariPageInner() {
   const [listError, setListError] = useState<string | null>(null);
 
   useEffect(() => {
-    void seed({}).catch(() => {
+    if (!token) return;
+    void seed({ sessionToken: token }).catch(() => {
       /* Convex down — form still usable with defaults */
     });
-  }, [seed]);
+  }, [seed, token]);
 
   useEffect(() => {
     if (issuer) {
@@ -124,11 +137,13 @@ function SetariPageInner() {
   }, [googleConnection]);
 
   const refreshAdsLists = useCallback(async () => {
+    if (!token) return;
     if (!googleConnection?.connected || !gadsForm.customerId.trim()) return;
     setListLoading(true);
     setListError(null);
     try {
       const args = {
+        sessionToken: token,
         customerId: gadsForm.customerId,
         loginCustomerId: gadsForm.loginCustomerId || undefined,
       };
@@ -148,6 +163,7 @@ function SetariPageInner() {
       setListLoading(false);
     }
   }, [
+    token,
     googleConnection?.connected,
     gadsForm.customerId,
     gadsForm.loginCustomerId,
@@ -192,12 +208,14 @@ function SetariPageInner() {
 
   async function onSave(e: React.FormEvent) {
     e.preventDefault();
+    if (!token) return;
     setSaving(true);
     setError(null);
     setSaved(false);
     try {
       const next = Math.max(1, Math.floor(Number(form.invoiceNextNumber) || 1));
       await upsert({
+        sessionToken: token,
         companyName: form.companyName,
         cui: form.cui,
         regCom: form.regCom,
@@ -229,6 +247,7 @@ function SetariPageInner() {
 
   async function onSaveGoogle(e: React.FormEvent) {
     e.preventDefault();
+    if (!token) return;
     setGadsSaving(true);
     setGadsError(null);
     setGadsSaved(false);
@@ -237,6 +256,7 @@ function SetariPageInner() {
         (c) => c.id === gadsForm.conversionActionId,
       );
       await updateGoogleConfig({
+        sessionToken: token,
         customerId: gadsForm.customerId,
         conversionActionId: gadsForm.conversionActionId,
         conversionActionName:
@@ -257,10 +277,11 @@ function SetariPageInner() {
   }
 
   async function onDisconnectGoogle() {
+    if (!token) return;
     if (!confirm("Deconectezi contul Google Ads?")) return;
     setGadsError(null);
     try {
-      await disconnectGoogle({});
+      await disconnectGoogle({ sessionToken: token });
       setGadsForm({
         customerId: "",
         loginCustomerId: "",

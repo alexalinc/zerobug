@@ -1,5 +1,10 @@
 "use client";
 
+import {
+  useAdminSessionToken,
+  withAdminToken,
+} from "@/components/admin-session-provider";
+
 import { useQuery } from "convex/react";
 import { api } from "@convex/_generated/api";
 import Link from "next/link";
@@ -42,7 +47,8 @@ function StatCard({
 }
 
 export default function AdminOverviewPage() {
-  const stats = useQuery(api.invoices.overviewStats);
+  const token = useAdminSessionToken();
+  const stats = useQuery(api.invoices.overviewStats, withAdminToken(token));
   const loading = !stats;
 
   const chartData = stats?.byMonth ?? [];

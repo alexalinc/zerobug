@@ -41,6 +41,7 @@ export async function POST(req: NextRequest) {
     await client.action(api.stripeWebhook.process, {
       type: event.type,
       data: event.data.object,
+      bridgeSecret: secret,
     });
   } catch (err) {
     console.error("Webhook processing failed", err);

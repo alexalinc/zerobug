@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { ConvexHttpClient } from "convex/browser";
 import { api } from "@convex/_generated/api";
-import { isAdminAuthenticatedRequest } from "@/lib/admin-auth";
+import {
+  ADMIN_SESSION_COOKIE,
+  isAdminAuthenticatedRequest,
+} from "@/lib/admin-auth";
 import {
   exchangeCodeForTokens,
   verifyOAuthState,
@@ -16,9 +19,8 @@ function settingsRedirect(req: NextRequest, params: Record<string, string>) {
 }
 
 export async function GET(req: NextRequest) {
-  // Prefer admin session; still accept valid OAuth `state` if cookie was dropped
-  // after redirect from Google (SameSite edge cases).
   const authed = await isAdminAuthenticatedRequest(req);
+  const sessionToken = req.cookies.get(ADMIN_SESSION_COOKIE)?.value;
 
   const code = req.nextUrl.searchParams.get("code");
   const state = req.nextUrl.searchParams.get("state");
@@ -48,6 +50,13 @@ export async function GET(req: NextRequest) {
     });
   }
 
+  // Require live admin session to persist tokens (blocks public Convex writes)
+  if (!authed || !sessionToken) {
+    const login = new URL("/admin/login", req.nextUrl.origin);
+    login.searchParams.set("next", "/api/admin/google-ads/connect");
+    return NextResponse.redirect(login);
+  }
+
   const convexUrl = process.env.NEXT_PUBLIC_CONVEX_URL;
   if (!convexUrl) {
     return settingsRedirect(req, {
@@ -68,6 +77,7 @@ export async function GET(req: NextRequest) {
 
     const client = new ConvexHttpClient(convexUrl);
     await client.mutation(api.googleAds.saveOAuthTokens, {
+      sessionToken,
       refreshToken: tokens.refreshToken,
       accessToken: tokens.accessToken,
       tokenExpiresAt: Date.now() + tokens.expiresIn * 1000,

@@ -1,5 +1,10 @@
 "use client";
 
+import {
+  useAdminSessionToken,
+  withAdminToken,
+} from "@/components/admin-session-provider";
+
 import { useMutation, useQuery } from "convex/react";
 import { api } from "@convex/_generated/api";
 import { useMemo, useState } from "react";
@@ -43,7 +48,11 @@ const emptyForm = {
 };
 
 export default function FirmePage() {
-  const companies = useQuery(api.companies.list) as CompanyRow[] | undefined;
+  const token = useAdminSessionToken();
+  const companies = useQuery(
+    api.companies.list,
+    withAdminToken(token),
+  ) as CompanyRow[] | undefined;
   const create = useMutation(api.companies.create);
   const update = useMutation(api.companies.update);
   const remove = useMutation(api.companies.remove);
@@ -81,10 +90,12 @@ export default function FirmePage() {
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (!token) return;
     const monthlyAmount = form.monthlyAmount
       ? Number(form.monthlyAmount)
       : undefined;
     const payload = {
+      sessionToken: token,
       name: form.name,
       email: form.email,
       cui: form.cui || undefined,
@@ -345,7 +356,9 @@ export default function FirmePage() {
                       size="sm"
                       variant="outline"
                       onClick={() =>
+                        token &&
                         update({
+                          sessionToken: token,
                           id: c._id,
                           name: c.name,
                           email: c.email,
@@ -367,7 +380,9 @@ export default function FirmePage() {
                     <Button
                       size="sm"
                       variant="destructive"
-                      onClick={() => remove({ id: c._id })}
+                      onClick={() =>
+                        token && remove({ sessionToken: token, id: c._id })
+                      }
                     >
                       Șterge
                     </Button>

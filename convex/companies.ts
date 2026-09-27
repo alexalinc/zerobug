@@ -1,5 +1,6 @@
 import { v } from "convex/values";
 import { mutation, query, internalQuery } from "./_generated/server";
+import { requireAdminSession } from "./lib/adminGate";
 
 const companyDoc = v.object({
   _id: v.id("companies"),
@@ -26,17 +27,19 @@ const vatModeArg = v.optional(
 );
 
 export const list = query({
-  args: {},
+  args: { sessionToken: v.string() },
   returns: v.array(companyDoc),
-  handler: async (ctx) => {
+  handler: async (ctx, args) => {
+    await requireAdminSession(args.sessionToken);
     return await ctx.db.query("companies").order("desc").take(200);
   },
 });
 
 export const get = query({
-  args: { id: v.id("companies") },
+  args: { sessionToken: v.string(), id: v.id("companies") },
   returns: v.union(companyDoc, v.null()),
   handler: async (ctx, args) => {
+    await requireAdminSession(args.sessionToken);
     return await ctx.db.get(args.id);
   },
 });
@@ -62,6 +65,7 @@ export const listActiveInternal = internalQuery({
 
 export const create = mutation({
   args: {
+    sessionToken: v.string(),
     name: v.string(),
     email: v.string(),
     cui: v.optional(v.string()),
@@ -76,18 +80,20 @@ export const create = mutation({
   },
   returns: v.id("companies"),
   handler: async (ctx, args) => {
+    await requireAdminSession(args.sessionToken);
+    const { sessionToken: _, ...rest } = args;
     return await ctx.db.insert("companies", {
-      name: args.name,
-      email: args.email,
-      cui: args.cui,
-      regCom: args.regCom,
-      address: args.address,
-      phone: args.phone,
-      notes: args.notes,
-      monthlyAmount: args.monthlyAmount,
-      vatMode: args.vatMode ?? "excluded",
-      invoiceDescription: args.invoiceDescription,
-      status: args.status ?? "active",
+      name: rest.name,
+      email: rest.email,
+      cui: rest.cui,
+      regCom: rest.regCom,
+      address: rest.address,
+      phone: rest.phone,
+      notes: rest.notes,
+      monthlyAmount: rest.monthlyAmount,
+      vatMode: rest.vatMode ?? "excluded",
+      invoiceDescription: rest.invoiceDescription,
+      status: rest.status ?? "active",
       createdAt: Date.now(),
     });
   },
@@ -95,6 +101,7 @@ export const create = mutation({
 
 export const update = mutation({
   args: {
+    sessionToken: v.string(),
     id: v.id("companies"),
     name: v.string(),
     email: v.string(),
@@ -110,16 +117,18 @@ export const update = mutation({
   },
   returns: v.null(),
   handler: async (ctx, args) => {
-    const { id, ...rest } = args;
+    await requireAdminSession(args.sessionToken);
+    const { sessionToken: _, id, ...rest } = args;
     await ctx.db.patch(id, rest);
     return null;
   },
 });
 
 export const remove = mutation({
-  args: { id: v.id("companies") },
+  args: { sessionToken: v.string(), id: v.id("companies") },
   returns: v.null(),
   handler: async (ctx, args) => {
+    await requireAdminSession(args.sessionToken);
     await ctx.db.delete(args.id);
     return null;
   },

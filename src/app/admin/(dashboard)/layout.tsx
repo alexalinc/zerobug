@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { AdminShell } from "@/components/admin-shell";
+import { AdminSessionProvider } from "@/components/admin-session-provider";
 import { isAdminAuthenticated } from "@/lib/admin-auth";
 
 export default async function AdminDashboardLayout({
@@ -11,5 +12,9 @@ export default async function AdminDashboardLayout({
     redirect("/admin/login");
   }
 
-  return <AdminShell>{children}</AdminShell>;
+  return (
+    <AdminSessionProvider>
+      <AdminShell>{children}</AdminShell>
+    </AdminSessionProvider>
+  );
 }

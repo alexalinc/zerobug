@@ -1,13 +1,22 @@
 "use client";
 
+import {
+  useAdminSessionToken,
+  withAdminToken,
+} from "@/components/admin-session-provider";
+
 import { useAction, useMutation, useQuery } from "convex/react";
 import { api } from "@convex/_generated/api";
 import { Button } from "@/components/ui/button";
 import type { Id } from "@convex/_generated/dataModel";
 
 export default function AbonamentePage() {
-  const subs = useQuery(api.subscriptions.listWithDetails);
-  const companies = useQuery(api.companies.list);
+  const token = useAdminSessionToken();
+  const subs = useQuery(
+    api.subscriptions.listWithDetails,
+    withAdminToken(token),
+  );
+  const companies = useQuery(api.companies.list, withAdminToken(token));
   const plans = useQuery(api.subscriptions.listPlans);
   const createManual = useMutation(api.subscriptions.createManual);
   const updateStatus = useMutation(api.subscriptions.updateStatus);
@@ -15,8 +24,10 @@ export default function AbonamentePage() {
 
   async function addManual(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    if (!token) return;
     const fd = new FormData(e.currentTarget);
     await createManual({
+      sessionToken: token,
       companyId: fd.get("companyId") as Id<"companies">,
       planId: fd.get("planId") as Id<"maintenancePlans">,
     });
@@ -89,7 +100,9 @@ export default function AbonamentePage() {
                     size="sm"
                     variant="outline"
                     onClick={() =>
+                      token &&
                       updateStatus({
+                        sessionToken: token,
                         id: s._id,
                         status:
                           s.status === "canceled" ? "manual" : "canceled",
@@ -100,7 +113,13 @@ export default function AbonamentePage() {
                   </Button>
                   <Button
                     size="sm"
-                    onClick={() => generate({ subscriptionId: s._id })}
+                    onClick={() =>
+                      token &&
+                      generate({
+                        sessionToken: token,
+                        subscriptionId: s._id,
+                      })
+                    }
                   >
                     Generează factură
                   </Button>

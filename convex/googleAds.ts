@@ -6,6 +6,7 @@ import {
   internalMutation,
 } from "./_generated/server";
 import { internal } from "./_generated/api";
+import { requireAdminSession } from "./lib/adminGate";
 
 const googleAdsStatusValidator = v.union(
   v.literal("pending"),
@@ -14,9 +15,9 @@ const googleAdsStatusValidator = v.union(
   v.literal("failed"),
 );
 
-/** Public connection status for admin UI (no tokens). */
+/** Connection status for admin UI (no tokens). */
 export const getConnection = query({
-  args: {},
+  args: { sessionToken: v.string() },
   returns: v.union(
     v.null(),
     v.object({
@@ -32,7 +33,8 @@ export const getConnection = query({
       ready: v.boolean(),
     }),
   ),
-  handler: async (ctx) => {
+  handler: async (ctx, args) => {
+    await requireAdminSession(args.sessionToken);
     const row = await ctx.db
       .query("googleAdsSettings")
       .withIndex("by_key", (q) => q.eq("key", "main"))
@@ -62,6 +64,7 @@ export const getConnection = query({
 /** Called from OAuth callback after exchanging the code. */
 export const saveOAuthTokens = mutation({
   args: {
+    sessionToken: v.string(),
     refreshToken: v.string(),
     accessToken: v.optional(v.string()),
     tokenExpiresAt: v.optional(v.number()),
@@ -69,6 +72,7 @@ export const saveOAuthTokens = mutation({
   },
   returns: v.id("googleAdsSettings"),
   handler: async (ctx, args) => {
+    await requireAdminSession(args.sessionToken);
     const existing = await ctx.db
       .query("googleAdsSettings")
       .withIndex("by_key", (q) => q.eq("key", "main"))
@@ -102,6 +106,7 @@ export const saveOAuthTokens = mutation({
 
 export const updateConfig = mutation({
   args: {
+    sessionToken: v.string(),
     customerId: v.string(),
     conversionActionId: v.string(),
     conversionActionName: v.optional(v.string()),
@@ -111,6 +116,7 @@ export const updateConfig = mutation({
   },
   returns: v.null(),
   handler: async (ctx, args) => {
+    await requireAdminSession(args.sessionToken);
     const existing = await ctx.db
       .query("googleAdsSettings")
       .withIndex("by_key", (q) => q.eq("key", "main"))
@@ -143,9 +149,10 @@ export const updateConfig = mutation({
 });
 
 export const disconnect = mutation({
-  args: {},
+  args: { sessionToken: v.string() },
   returns: v.null(),
-  handler: async (ctx) => {
+  handler: async (ctx, args) => {
+    await requireAdminSession(args.sessionToken);
     const existing = await ctx.db
       .query("googleAdsSettings")
       .withIndex("by_key", (q) => q.eq("key", "main"))
@@ -159,9 +166,10 @@ export const disconnect = mutation({
 
 /** Re-queue conversion upload for a lead (admin retry). */
 export const retryGoogleAdsSync = mutation({
-  args: { leadId: v.id("leads") },
+  args: { sessionToken: v.string(), leadId: v.id("leads") },
   returns: v.null(),
   handler: async (ctx, args) => {
+    await requireAdminSession(args.sessionToken);
     const lead = await ctx.db.get(args.leadId);
     if (!lead) throw new Error("Lead negăsit");
 

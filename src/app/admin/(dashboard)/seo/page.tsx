@@ -1,5 +1,10 @@
 "use client";
 
+import {
+  useAdminSessionToken,
+  withAdminToken,
+} from "@/components/admin-session-provider";
+
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "@convex/_generated/api";
@@ -16,6 +21,7 @@ import {
 import { ExternalLink, RefreshCw } from "lucide-react";
 
 export default function SeoAdminPage() {
+  const token = useAdminSessionToken();
   const seo = useQuery(api.seo.get);
   const upsert = useMutation(api.seo.upsert);
   const seed = useMutation(api.seo.seedDefaults);
@@ -33,8 +39,9 @@ export default function SeoAdminPage() {
   const entries = useMemo(() => getSitemapEntries(), []);
 
   useEffect(() => {
-    void seed({}).catch(() => undefined);
-  }, [seed]);
+    if (!token) return;
+    void seed({ sessionToken: token }).catch(() => undefined);
+  }, [seed, token]);
 
   useEffect(() => {
     if (seo) {
@@ -48,11 +55,12 @@ export default function SeoAdminPage() {
 
   async function onSave(e: React.FormEvent) {
     e.preventDefault();
+    if (!token) return;
     setSaving(true);
     setError(null);
     setMessage(null);
     try {
-      await upsert({ robotsTxt, llmsTxt });
+      await upsert({ sessionToken: token, robotsTxt, llmsTxt });
       setSaved(true);
       setMessage("robots.txt și llms.txt salvate.");
       setTimeout(() => setSaved(false), 2500);

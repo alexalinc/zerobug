@@ -5,10 +5,22 @@ const COOKIE = "zb_admin_session";
 
 function getSecret() {
   const secret =
-    process.env.ADMIN_SESSION_SECRET ||
-    process.env.ADMIN_PASSWORD ||
-    "zerobug-dev-secret-change-me";
-  return new TextEncoder().encode(secret);
+    process.env.ADMIN_SESSION_SECRET || process.env.ADMIN_PASSWORD;
+  if (
+    (process.env.NODE_ENV === "production" || process.env.VERCEL) &&
+    (!secret ||
+      secret === "zerobug-dev-secret-change-me" ||
+      secret === "zerobug-admin" ||
+      secret === "changeme")
+  ) {
+    // Fail closed: treat as unverified rather than using a public default
+    return new TextEncoder().encode(
+      `missing-production-secret-${Math.random()}`,
+    );
+  }
+  return new TextEncoder().encode(
+    secret || "zerobug-dev-secret-change-me",
+  );
 }
 
 export async function proxy(request: NextRequest) {
