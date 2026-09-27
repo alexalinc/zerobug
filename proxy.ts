@@ -46,12 +46,30 @@ export async function proxy(request: NextRequest) {
       }
       const url = request.nextUrl.clone();
       url.pathname = "/admin/login";
-      return NextResponse.redirect(url);
+      url.search = "";
+      if (pathname !== "/admin") {
+        url.searchParams.set("next", pathname);
+      }
+      const redirectResponse = NextResponse.redirect(url);
+      // Never let CDN/browser cache an unauthenticated admin HTML shell
+      redirectResponse.headers.set(
+        "Cache-Control",
+        "private, no-store, max-age=0, must-revalidate",
+      );
+      return redirectResponse;
     }
+
+    const response = NextResponse.next();
+    response.headers.set(
+      "Cache-Control",
+      "private, no-store, max-age=0, must-revalidate",
+    );
+    return response;
   }
   return NextResponse.next();
 }
 
 export const config = {
-  matcher: ["/admin/:path*", "/api/admin/:path*"],
+  // Explicit `/admin` — `:path*` alone can miss the exact root path in some matchers
+  matcher: ["/admin", "/admin/:path*", "/api/admin", "/api/admin/:path*"],
 };
