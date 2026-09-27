@@ -17,6 +17,7 @@ import {
   getAdsClickIdsForLead,
   getMarketingConsentForLead,
 } from "@/lib/gclid";
+import { fetchLeadFormToken } from "@/lib/lead-form-client";
 
 const TESTIMONIALS = [
   {
@@ -86,6 +87,13 @@ export function ContactSection() {
     setStatus("idle");
     const fd = new FormData(e.currentTarget);
     try {
+      // Honeypot — bots that autofill hidden fields are rejected server-side
+      if (String(fd.get("website") || "").trim()) {
+        setStatus("ok");
+        e.currentTarget.reset();
+        return;
+      }
+      const formToken = await fetchLeadFormToken();
       const adsIds = getAdsClickIdsForLead();
       await createLead({
         type: "contact",
@@ -94,6 +102,8 @@ export function ContactSection() {
         company: String(fd.get("company") || "") || undefined,
         message: String(fd.get("message") || "") || undefined,
         marketingConsent: getMarketingConsentForLead(),
+        formToken,
+        website: "",
         ...adsIds,
       });
       setStatus("ok");
@@ -202,7 +212,20 @@ export function ContactSection() {
               duration={0.3}
             />
 
-            <form onSubmit={onSubmit} className="mt-10 space-y-5">
+            <form onSubmit={onSubmit} className="relative mt-10 space-y-5">
+              <div
+                aria-hidden="true"
+                className="pointer-events-none absolute -left-[9999px] h-0 w-0 overflow-hidden opacity-0"
+              >
+                <label htmlFor="website">Website</label>
+                <input
+                  id="website"
+                  name="website"
+                  type="text"
+                  tabIndex={-1}
+                  autoComplete="off"
+                />
+              </div>
               <div className="space-y-2">
                 <Label htmlFor="name" className="text-zinc-400">
                   Nume complet

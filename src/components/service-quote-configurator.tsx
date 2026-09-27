@@ -14,6 +14,7 @@ import {
   getAdsClickIdsForLead,
   getMarketingConsentForLead,
 } from "@/lib/gclid";
+import { fetchLeadFormToken } from "@/lib/lead-form-client";
 import {
   useQuoteFunnel,
   useQuoteFunnelVisibility,
@@ -131,6 +132,15 @@ export function ServiceQuoteConfigurator({
     const fd = new FormData(e.currentTarget);
 
     try {
+      if (String(fd.get("website") || "").trim()) {
+        trackSubmit();
+        setStatus("ok");
+        setSelected([]);
+        setBudget(3000);
+        e.currentTarget.reset();
+        return;
+      }
+      const formToken = await fetchLeadFormToken();
       await createLead({
         type: "service_quote",
         name: String(fd.get("name") || ""),
@@ -142,6 +152,8 @@ export function ServiceQuoteConfigurator({
         serviceName: selected.join(", "),
         budget,
         marketingConsent: getMarketingConsentForLead(),
+        formToken,
+        website: "",
         ...getAdsClickIdsForLead(),
       });
       trackSubmit();
@@ -161,8 +173,21 @@ export function ServiceQuoteConfigurator({
       ref={formRef}
       id={id}
       onSubmit={onSubmit}
-      className="space-y-10 md:space-y-12"
+      className="relative space-y-10 md:space-y-12"
     >
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute -left-[9999px] h-0 w-0 overflow-hidden opacity-0"
+      >
+        <label htmlFor="sq-website">Website</label>
+        <input
+          id="sq-website"
+          name="website"
+          type="text"
+          tabIndex={-1}
+          autoComplete="off"
+        />
+      </div>
       <section>
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div>

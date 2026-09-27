@@ -1,13 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import {
-  checkLoginRateLimit,
-  clearLoginRateLimit,
   createAdminSession,
   destroyAdminSession,
   getClientIp,
-  recordLoginFailure,
   verifyAdminCredentials,
 } from "@/lib/admin-auth";
+import {
+  persistentCheckLogin,
+  persistentClearLogin,
+  persistentRecordLoginFailure,
+} from "@/lib/persistent-rate-limit";
 
 export async function POST(req: NextRequest) {
   const body = await req.json();
@@ -20,7 +22,7 @@ export async function POST(req: NextRequest) {
 
   if (action === "login") {
     const ip = getClientIp(req);
-    const limit = checkLoginRateLimit(ip);
+    const limit = await persistentCheckLogin(ip);
     if (!limit.ok) {
       return NextResponse.json(
         {
@@ -41,14 +43,28 @@ export async function POST(req: NextRequest) {
     const rememberMe = Boolean(body.rememberMe);
 
     if (!verifyAdminCredentials(username, password)) {
-      recordLoginFailure(ip);
+      const after = await persistentRecordLoginFailure(ip);
+      if (!after.ok) {
+        return NextResponse.json(
+          {
+            error: `Prea multe încercări. Reîncearcă în ${after.retryAfterSec}s.`,
+            retryAfterSec: after.retryAfterSec,
+          },
+          {
+            status: 429,
+            headers: {
+              "Retry-After": String(after.retryAfterSec ?? 900),
+            },
+          },
+        );
+      }
       return NextResponse.json(
         { error: "Utilizator sau parolă invalidă" },
         { status: 401 },
       );
     }
 
-    clearLoginRateLimit(ip);
+    await persistentClearLogin(ip);
     await createAdminSession(rememberMe);
     return NextResponse.json({ ok: true });
   }

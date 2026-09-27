@@ -1,6 +1,27 @@
 import type { NextConfig } from "next";
 import path from "path";
 
+/**
+ * CSP tuned for Next.js App Router + Convex + Stripe Checkout + Google Ads/OAuth.
+ * 'unsafe-inline' / 'unsafe-eval' are required by Next.js runtime without nonces;
+ * still blocks many XSS vectors via default-src / object-src / base-uri / frame-ancestors.
+ */
+const CONTENT_SECURITY_POLICY = [
+  "default-src 'self'",
+  "base-uri 'self'",
+  "object-src 'none'",
+  "frame-ancestors 'none'",
+  "form-action 'self'",
+  "img-src 'self' data: blob: https://images.unsplash.com https://*.stripe.com https://*.googleusercontent.com https://www.google.com https://www.googletagmanager.com",
+  "font-src 'self' data:",
+  "style-src 'self' 'unsafe-inline'",
+  "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://js.stripe.com https://www.googletagmanager.com https://www.googleadservices.com https://www.google.com https://googleads.g.doubleclick.net",
+  "connect-src 'self' https://*.convex.cloud https://*.convex.site wss://*.convex.cloud https://api.stripe.com https://www.google-analytics.com https://www.googletagmanager.com https://googleads.g.doubleclick.net https://www.google.com https://oauth2.googleapis.com https://accounts.google.com",
+  "frame-src 'self' https://js.stripe.com https://hooks.stripe.com https://accounts.google.com https://www.google.com",
+  "worker-src 'self' blob:",
+  "upgrade-insecure-requests",
+].join("; ");
+
 const nextConfig: NextConfig = {
   turbopack: {
     root: path.join(__dirname),
@@ -24,6 +45,14 @@ const nextConfig: NextConfig = {
           {
             key: "Permissions-Policy",
             value: "camera=(), microphone=(), geolocation=()",
+          },
+          {
+            key: "Strict-Transport-Security",
+            value: "max-age=63072000; includeSubDomains; preload",
+          },
+          {
+            key: "Content-Security-Policy",
+            value: CONTENT_SECURITY_POLICY,
           },
         ],
       },

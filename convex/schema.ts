@@ -299,4 +299,15 @@ export default defineSchema({
     .index("by_created", ["createdAt"])
     .index("by_session", ["sessionId"])
     .index("by_form_created", ["formType", "createdAt"]),
+
+  /**
+   * Persistent rate-limit buckets (login / lead challenges).
+   * Keys are opaque hashes — never store raw IPs.
+   */
+  rateLimits: defineTable({
+    key: v.string(),
+    count: v.number(),
+    windowStart: v.number(),
+    blockedUntil: v.number(),
+  }).index("by_key", ["key"]),
 });

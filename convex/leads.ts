@@ -2,6 +2,7 @@ import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { internal } from "./_generated/api";
 import { requireAdminSession } from "./lib/adminGate";
+import { requireLeadFormToken } from "./lib/formToken";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const MAX_LEADS_PER_EMAIL_PER_HOUR = 5;
@@ -43,9 +44,19 @@ export const create = mutation({
     gbraid: v.optional(v.string()),
     wbraid: v.optional(v.string()),
     marketingConsent: v.optional(v.boolean()),
+    /** Short-lived JWT from GET /api/leads/challenge */
+    formToken: v.string(),
+    /** Honeypot — must be empty / omitted. Bots that fill hidden fields are rejected. */
+    website: v.optional(v.string()),
   },
   returns: v.id("leads"),
   handler: async (ctx, args) => {
+    // Honeypot: real users never see/fill this field
+    if (args.website && args.website.trim().length > 0) {
+      throw new Error("Cerere respinsă");
+    }
+    await requireLeadFormToken(args.formToken);
+
     const name = clampStr(args.name, 120);
     const email = clampStr(args.email, 254).toLowerCase();
     if (name.length < 2) throw new Error("Nume invalid");
@@ -91,6 +102,8 @@ export const create = mutation({
       gbraid,
       wbraid,
       marketingConsent,
+      formToken: _formToken,
+      website: _website,
       ...rest
     } = args;
 

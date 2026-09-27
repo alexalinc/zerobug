@@ -22,6 +22,7 @@ import {
   getAdsClickIdsForLead,
   getMarketingConsentForLead,
 } from "@/lib/gclid";
+import { fetchLeadFormToken } from "@/lib/lead-form-client";
 import {
   ACCESS_OPTIONS,
   BUSINESS_TYPES,
@@ -206,6 +207,7 @@ export function MaintenanceConfigurator() {
     setLoading(true);
     setStatus("idle");
     try {
+      const formToken = await fetchLeadFormToken();
       const summary = buildQuoteSummary(answers, estimate, notes);
       await createLead({
         type: "maintenance",
@@ -230,6 +232,8 @@ export function MaintenanceConfigurator() {
             reasons: estimate.reasons,
           },
         }),
+        formToken,
+        website: "",
         ...getAdsClickIdsForLead(),
         marketingConsent: getMarketingConsentForLead(),
       });

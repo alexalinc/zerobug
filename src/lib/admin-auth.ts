@@ -133,79 +133,12 @@ export function verifyAdminPassword(password: string) {
   return safeEqual(password, expected.password);
 }
 
-type RateBucket = {
-  count: number;
-  resetAt: number;
-  blockedUntil: number;
-};
-
-const loginAttempts = new Map<string, RateBucket>();
-
-const WINDOW_MS = 15 * 60 * 1000;
-const MAX_ATTEMPTS = 5;
-const BLOCK_MS = 15 * 60 * 1000;
-
 export function getClientIp(req: {
   headers: Headers;
 }): string {
   const forwarded = req.headers.get("x-forwarded-for");
   if (forwarded) return forwarded.split(",")[0]?.trim() || "unknown";
   return req.headers.get("x-real-ip") || "unknown";
-}
-
-export function checkLoginRateLimit(ip: string): {
-  ok: boolean;
-  retryAfterSec?: number;
-} {
-  const now = Date.now();
-  const bucket = loginAttempts.get(ip);
-
-  if (bucket?.blockedUntil && bucket.blockedUntil > now) {
-    return {
-      ok: false,
-      retryAfterSec: Math.ceil((bucket.blockedUntil - now) / 1000),
-    };
-  }
-
-  if (!bucket || bucket.resetAt <= now) {
-    loginAttempts.set(ip, {
-      count: 0,
-      resetAt: now + WINDOW_MS,
-      blockedUntil: 0,
-    });
-    return { ok: true };
-  }
-
-  if (bucket.count >= MAX_ATTEMPTS) {
-    bucket.blockedUntil = now + BLOCK_MS;
-    return {
-      ok: false,
-      retryAfterSec: Math.ceil(BLOCK_MS / 1000),
-    };
-  }
-
-  return { ok: true };
-}
-
-export function recordLoginFailure(ip: string) {
-  const now = Date.now();
-  const bucket = loginAttempts.get(ip);
-  if (!bucket || bucket.resetAt <= now) {
-    loginAttempts.set(ip, {
-      count: 1,
-      resetAt: now + WINDOW_MS,
-      blockedUntil: 0,
-    });
-    return;
-  }
-  bucket.count += 1;
-  if (bucket.count >= MAX_ATTEMPTS) {
-    bucket.blockedUntil = now + BLOCK_MS;
-  }
-}
-
-export function clearLoginRateLimit(ip: string) {
-  loginAttempts.delete(ip);
 }
 
 export { COOKIE as ADMIN_SESSION_COOKIE };
