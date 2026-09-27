@@ -18,7 +18,7 @@ npm install
 npm run dev
 ```
 
-Admin: `/admin/login` — parola din `ADMIN_PASSWORD` (default `zerobug-admin` local).
+Admin: `/admin/login` — parola din `ADMIN_PASSWORD` (local default doar în development; în producție e obligatoriu un secret puternic).
 
 ## Seed planuri + date emitent
 
