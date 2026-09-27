@@ -12,6 +12,7 @@ import {
   getAdsClickIdsForLead,
   getMarketingConsentForLead,
 } from "@/lib/gclid";
+import { fetchLeadFormToken } from "@/lib/lead-form-client";
 import {
   useQuoteFunnel,
   useQuoteFunnelVisibility,
@@ -68,6 +69,14 @@ export function QuoteForm({
         : String(fd.get("serviceName") || "") || undefined;
 
     try {
+      if (String(fd.get("website") || "").trim()) {
+        trackSubmit();
+        setStatus("ok");
+        setSelectedServices([]);
+        e.currentTarget.reset();
+        return;
+      }
+      const formToken = await fetchLeadFormToken();
       const adsIds = getAdsClickIdsForLead();
       await createLead({
         type,
@@ -81,6 +90,8 @@ export function QuoteForm({
         planKey,
         complexity: String(fd.get("complexity") || "") || undefined,
         marketingConsent: getMarketingConsentForLead(),
+        formToken,
+        website: "",
         ...adsIds,
       });
       trackSubmit();
@@ -100,6 +111,19 @@ export function QuoteForm({
       onSubmit={onSubmit}
       className="relative overflow-hidden rounded-2xl border border-white/10 bg-zinc-900/70 p-6 md:p-7 space-y-5 shadow-[0_0_0_1px_rgba(255,255,255,0.03)]"
     >
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute -left-[9999px] h-0 w-0 overflow-hidden opacity-0"
+      >
+        <label htmlFor="quote-website">Website</label>
+        <input
+          id="quote-website"
+          name="website"
+          type="text"
+          tabIndex={-1}
+          autoComplete="off"
+        />
+      </div>
       <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-[color:var(--brand)]/50 to-transparent" />
       <div>
         <h2 className="text-xl font-semibold tracking-tight text-white">
