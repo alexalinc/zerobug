@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useMutation } from "convex/react";
 import { api } from "@convex/_generated/api";
 import { Button } from "@/components/ui/button";
@@ -12,6 +12,10 @@ import {
   getAdsClickIdsForLead,
   getMarketingConsentForLead,
 } from "@/lib/gclid";
+import {
+  useQuoteFunnel,
+  useQuoteFunnelVisibility,
+} from "@/components/use-quote-funnel";
 
 type Props = {
   type: "contact" | "service_quote" | "maintenance";
@@ -38,10 +42,16 @@ export function QuoteForm({
   const [selectedServices, setSelectedServices] = useState<string[]>(
     serviceName ? [serviceName] : [],
   );
+  const formRef = useRef<HTMLFormElement>(null);
+  const { trackView, trackStart, trackStep, trackField, trackSubmit } =
+    useQuoteFunnel(type);
+  useQuoteFunnelVisibility(formRef, trackView);
 
   const options = useMemo(() => serviceOptions ?? [], [serviceOptions]);
 
   function toggleService(s: string) {
+    trackStart("start", "Început");
+    trackStep("services", "Alegere servicii");
     setSelectedServices((prev) =>
       prev.includes(s) ? prev.filter((x) => x !== s) : [...prev, s],
     );
@@ -73,6 +83,7 @@ export function QuoteForm({
         marketingConsent: getMarketingConsentForLead(),
         ...adsIds,
       });
+      trackSubmit();
       setStatus("ok");
       setSelectedServices([]);
       e.currentTarget.reset();
@@ -85,6 +96,7 @@ export function QuoteForm({
 
   return (
     <form
+      ref={formRef}
       onSubmit={onSubmit}
       className="relative overflow-hidden rounded-2xl border border-white/10 bg-zinc-900/70 p-6 md:p-7 space-y-5 shadow-[0_0_0_1px_rgba(255,255,255,0.03)]"
     >
@@ -125,7 +137,16 @@ export function QuoteForm({
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="space-y-2">
           <Label htmlFor="name">Nume *</Label>
-          <Input id="name" name="name" required placeholder="Numele tău" />
+          <Input
+            id="name"
+            name="name"
+            required
+            placeholder="Numele tău"
+            onFocus={() => {
+              trackStart("contact", "Date contact");
+              trackField("name", "contact");
+            }}
+          />
         </div>
         <div className="space-y-2">
           <Label htmlFor="email">Email *</Label>
@@ -135,15 +156,26 @@ export function QuoteForm({
             type="email"
             required
             placeholder="email@firma.ro"
+            onFocus={() => trackField("email", "contact")}
           />
         </div>
         <div className="space-y-2">
           <Label htmlFor="phone">Telefon</Label>
-          <Input id="phone" name="phone" placeholder="07xx xxx xxx" />
+          <Input
+            id="phone"
+            name="phone"
+            placeholder="07xx xxx xxx"
+            onFocus={() => trackField("phone", "contact")}
+          />
         </div>
         <div className="space-y-2">
           <Label htmlFor="company">Firmă</Label>
-          <Input id="company" name="company" placeholder="Denumire firmă" />
+          <Input
+            id="company"
+            name="company"
+            placeholder="Denumire firmă"
+            onFocus={() => trackField("company", "contact")}
+          />
         </div>
       </div>
 
@@ -155,6 +187,7 @@ export function QuoteForm({
             name="serviceName"
             defaultValue={serviceName}
             placeholder="Ex: Checkout custom"
+            onFocus={() => trackField("serviceName", "services")}
           />
         </div>
       )}
@@ -167,6 +200,7 @@ export function QuoteForm({
           rows={4}
           required
           placeholder="Obiective, deadline, buget aproximativ, link site existent..."
+          onFocus={() => trackField("message", "contact")}
         />
       </div>
 
@@ -179,7 +213,7 @@ export function QuoteForm({
       </Button>
 
       {status === "ok" && (
-        <p className="text-sm text-emerald-400">
+        <p className="mt-4 text-sm text-emerald-400">
           Mulțumim! Cererea a fost trimisă pe email către echipa ZeroBug.
         </p>
       )}
