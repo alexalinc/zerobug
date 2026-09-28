@@ -12,7 +12,7 @@ export const metadata = pageMetadata(PAGE_SEO.mentenanta);
 
 export default function MentenantaPage() {
   return (
-    <main className="relative bg-zinc-950 text-white pb-24 lg:pb-16">
+    <main className="relative bg-zinc-950 text-white pb-16">
       <JsonLd
         data={[
           webPageSchema({
@@ -38,12 +38,12 @@ export default function MentenantaPage() {
         </p>
         <TextGenerateEffect
           as="h1"
-          words="Spune-ne despre site — îți estimăm mentenanța"
+          words="Mentenanță website — cere ofertă rapid"
           className="mt-3 max-w-3xl text-4xl font-semibold tracking-tight md:text-6xl"
           duration={0.4}
         />
         <TextGenerateEffect
-          words="Răspunzi la câteva întrebări despre platformă, business și infrastructură. Vezi live un interval de preț și ne trimiți cererea — revenim cu oferta personalizată, fără obligație."
+          words="Nume, email, telefon și link-ul site-ului. Alegi un plan orientativ și trimiți cererea — revenim noi cu oferta, fără obligație."
           className="mt-4 max-w-2xl text-zinc-400 leading-relaxed"
           duration={0.3}
         />
