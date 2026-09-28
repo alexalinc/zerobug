@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 import { ConvexClientProvider } from "@/components/convex-client-provider";
 import { GclidCapture } from "@/components/gclid-capture";
+import { GoogleAdsTag } from "@/components/google-ads-tag";
 import { SiteAnalytics } from "@/components/site-analytics";
 import { CookiePanel } from "@/components/ui/cookie-banner-1";
 import "./globals.css";
@@ -48,6 +49,7 @@ export default function RootLayout({
   return (
     <html lang="ro" className="h-full antialiased dark">
       <body className="min-h-full flex flex-col bg-zinc-950 text-zinc-100 font-sans">
+        <GoogleAdsTag />
         <ConvexClientProvider>
           <GclidCapture />
           <Suspense fallback={null}>

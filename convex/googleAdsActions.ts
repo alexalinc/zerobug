@@ -112,6 +112,7 @@ type SettingsRow = {
   refreshToken: string;
   accessToken?: string;
   tokenExpiresAt?: number;
+  email?: string;
   customerId?: string;
   loginCustomerId?: string;
   conversionActionId?: string;
@@ -151,7 +152,7 @@ async function ensureAccessToken(
 async function googleAdsSearch(
   accessToken: string,
   customerId: string,
-  loginCustomerId: string,
+  loginCustomerId: string | undefined,
   query: string,
 ): Promise<unknown[]> {
   const developerToken = process.env.GOOGLE_ADS_DEVELOPER_TOKEN?.trim();
@@ -161,16 +162,22 @@ async function googleAdsSearch(
     );
   }
 
+  const headers: Record<string, string> = {
+    Authorization: `Bearer ${accessToken}`,
+    "developer-token": developerToken,
+    "Content-Type": "application/json",
+  };
+  // Only for MCC → client. Sending a wrong login-customer-id causes PERMISSION_DENIED.
+  const loginId = loginCustomerId?.replace(/-/g, "").trim();
+  if (loginId && loginId !== customerId) {
+    headers["login-customer-id"] = loginId;
+  }
+
   const res = await fetch(
     `${ADS_API}/customers/${customerId}/googleAds:search`,
     {
       method: "POST",
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        "developer-token": developerToken,
-        "login-customer-id": loginCustomerId,
-        "Content-Type": "application/json",
-      },
+      headers,
       body: JSON.stringify({ query }),
     },
   );
@@ -178,7 +185,16 @@ async function googleAdsSearch(
   const text = await res.text();
   let json: {
     results?: unknown[];
-    error?: { message?: string };
+    error?: {
+      message?: string;
+      status?: string;
+      details?: Array<{
+        errors?: Array<{
+          errorCode?: Record<string, string>;
+          message?: string;
+        }>;
+      }>;
+    };
   } = {};
   try {
     json = JSON.parse(text) as typeof json;
@@ -188,16 +204,43 @@ async function googleAdsSearch(
 
   if (!res.ok) {
     const apiMsg = json.error?.message || "";
-    if (/insufficient.*scope|ACCESS_TOKEN_SCOPE_INSUFFICIENT/i.test(apiMsg + text)) {
+    const detail =
+      json.error?.details?.[0]?.errors?.[0]?.message ||
+      json.error?.details?.[0]?.errors?.[0]?.errorCode;
+    const authCode = json.error?.details?.[0]?.errors?.[0]?.errorCode
+      ? Object.values(json.error.details[0].errors[0].errorCode!)[0]
+      : undefined;
+    const combined = `${apiMsg} ${typeof detail === "string" ? detail : ""} ${authCode || ""} ${text}`;
+
+    if (/insufficient.*scope|ACCESS_TOKEN_SCOPE_INSUFFICIENT/i.test(combined)) {
       throw new Error(
-        "Lipsește permisiunea Google Ads (scope adwords). Deconectează contul, apoi reconectează și acceptă toate permisiunile.",
+        "Lipsește permisiunea Google Ads (scope adwords). Deconectează, reconectează și acceptă toate permisiunile.",
+      );
+    }
+    if (/DEVELOPER_TOKEN_NOT_APPROVED|CLOUD_PROJECT_NOT_APPROVED_FOR_PRODUCTION/i.test(combined)) {
+      throw new Error(
+        "Proiectul Google Cloud (cel cu OAuth Client ID) are doar Test Access. Din sept. 2026 nivelul API e pe Cloud Console, nu pe developer token: APIs & Services → Google Ads API → Overview → Apply for Explorer/Basic. Token-ul din Ads API Center nu mai contează.",
+      );
+    }
+    if (/DEVELOPER_TOKEN_PROHIBITED/i.test(combined)) {
+      throw new Error(
+        "Developer token-ul nu e legat de același proiect Google Cloud ca OAuth (Client ID). Folosește OAuth din proiectul asociat token-ului, sau creează un proiect Cloud nou.",
+      );
+    }
+    if (/USER_PERMISSION_DENIED|CUSTOMER_NOT_ENABLED|does not have permission/i.test(combined)) {
+      const hint = authCode ? ` [${authCode}]` : "";
+      throw new Error(
+        `Fără acces la Customer ID${hint}. Dacă e cont de producție și developer token-ul e Test Access, trebuie Basic/Standard în API Center. Dacă e sub MCC, pune Login Customer ID. Conturi vizibile pentru user: folosește „Arată conturile accesibile”.`,
       );
     }
     const snippet = text.trimStart().startsWith("<!")
       ? `Google Ads API ${res.status} (endpoint invalid / versiune scoasă din uz). Verifică customer ID.`
       : text.slice(0, 400);
     throw new Error(
-      apiMsg || snippet || `Google Ads search failed (${res.status})`,
+      (typeof detail === "string" && detail) ||
+        apiMsg ||
+        snippet ||
+        `Google Ads search failed (${res.status})`,
     );
   }
 
@@ -374,6 +417,79 @@ const conversionItem = v.object({
   category: v.optional(v.string()),
 });
 
+/** Conturi Google Ads vizibile pentru userul OAuth conectat. */
+export const listAccessibleCustomers = action({
+  args: {},
+  returns: v.object({
+    customerIds: v.array(v.string()),
+    email: v.optional(v.string()),
+    error: v.optional(v.string()),
+  }),
+  handler: async (ctx) => {
+    const settings = (await ctx.runQuery(
+      internal.googleAds.getConnectionInternal,
+      {},
+    )) as SettingsRow | null;
+    if (!settings?.refreshToken) {
+      return {
+        customerIds: [],
+        error: "Conectează mai întâi Google Ads",
+      };
+    }
+    try {
+      const accessToken = await ensureAccessToken(ctx, settings);
+      const developerToken = process.env.GOOGLE_ADS_DEVELOPER_TOKEN?.trim();
+      if (!developerToken) {
+        return {
+          customerIds: [],
+          email: settings.email,
+          error: "GOOGLE_ADS_DEVELOPER_TOKEN lipsește în Convex",
+        };
+      }
+      const res = await fetch(`${ADS_API}/customers:listAccessibleCustomers`, {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          "developer-token": developerToken,
+        },
+      });
+      const text = await res.text();
+      let json: {
+        resourceNames?: string[];
+        error?: { message?: string };
+      } = {};
+      try {
+        json = JSON.parse(text) as typeof json;
+      } catch {
+        /* ignore */
+      }
+      if (!res.ok) {
+        return {
+          customerIds: [],
+          email: settings.email,
+          error:
+            json.error?.message ||
+            text.slice(0, 300) ||
+            `listAccessibleCustomers failed (${res.status})`,
+        };
+      }
+      const customerIds = (json.resourceNames ?? [])
+        .map((r) => r.replace(/^customers\//, "").replace(/-/g, ""))
+        .filter(Boolean);
+      return { customerIds, email: settings.email };
+    } catch (err) {
+      return {
+        customerIds: [],
+        email: settings.email,
+        error:
+          err instanceof Error
+            ? err.message
+            : "Nu am putut lista conturile accesibile",
+      };
+    }
+  },
+});
+
 /** List ENABLED campaigns for the connected customer. */
 export const listCampaigns = action({
   args: {
@@ -402,21 +518,17 @@ export const listCampaigns = action({
     }
     try {
       const accessToken = await ensureAccessToken(ctx, settings);
-      const loginId = (
-        args.loginCustomerId ||
-        settings.loginCustomerId ||
-        customerId
-      )
+      const loginId = (args.loginCustomerId || settings.loginCustomerId || "")
         .replace(/-/g, "")
         .trim();
 
       const results = await googleAdsSearch(
         accessToken,
         customerId,
-        loginId,
+        loginId || undefined,
         `SELECT campaign.id, campaign.name, campaign.status, campaign.advertising_channel_type
          FROM campaign
-         WHERE campaign.status = 'ENABLED'
+         WHERE campaign.status IN ('ENABLED', 'PAUSED')
          ORDER BY campaign.name`,
       );
 
@@ -477,18 +589,14 @@ export const listConversionActions = action({
     }
     try {
       const accessToken = await ensureAccessToken(ctx, settings);
-      const loginId = (
-        args.loginCustomerId ||
-        settings.loginCustomerId ||
-        customerId
-      )
+      const loginId = (args.loginCustomerId || settings.loginCustomerId || "")
         .replace(/-/g, "")
         .trim();
 
       const results = await googleAdsSearch(
         accessToken,
         customerId,
-        loginId,
+        loginId || undefined,
         `SELECT conversion_action.id, conversion_action.name, conversion_action.type,
                 conversion_action.status, conversion_action.category
          FROM conversion_action

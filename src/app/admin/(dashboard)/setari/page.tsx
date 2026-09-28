@@ -45,6 +45,9 @@ function SetariPageInner() {
   const disconnectGoogle = useMutation(api.googleAds.disconnect);
   const listCampaigns = useAction(api.googleAdsActions.listCampaigns);
   const listConversions = useAction(api.googleAdsActions.listConversionActions);
+  const listAccessibleCustomers = useAction(
+    api.googleAdsActions.listAccessibleCustomers,
+  );
   const searchParams = useSearchParams();
 
   const [form, setForm] = useState({
@@ -93,6 +96,9 @@ function SetariPageInner() {
   >([]);
   const [listLoading, setListLoading] = useState(false);
   const [listError, setListError] = useState<string | null>(null);
+  const [accessibleIds, setAccessibleIds] = useState<string[]>([]);
+  const [accessibleLoading, setAccessibleLoading] = useState(false);
+  const [accessibleError, setAccessibleError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!token) return;
@@ -497,6 +503,79 @@ function SetariPageInner() {
                 placeholder="1234567890"
                 required
               />
+              <div className="flex flex-wrap items-center gap-2 pt-1">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={accessibleLoading}
+                  onClick={() => {
+                    void (async () => {
+                      setAccessibleLoading(true);
+                      setAccessibleError(null);
+                      try {
+                        const res = await listAccessibleCustomers({});
+                        if (res.error) setAccessibleError(res.error);
+                        setAccessibleIds(res.customerIds);
+                        if (res.customerIds.length === 0 && !res.error) {
+                          setAccessibleError(
+                            "Niciun cont vizibil pentru acest user Google. Conectează-te cu un user Admin pe contul Ads.",
+                          );
+                        }
+                      } catch (err) {
+                        setAccessibleError(
+                          err instanceof Error
+                            ? err.message
+                            : "Listare conturi eșuată",
+                        );
+                      } finally {
+                        setAccessibleLoading(false);
+                      }
+                    })();
+                  }}
+                >
+                  {accessibleLoading
+                    ? "Se caută…"
+                    : "Arată conturile accesibile"}
+                </Button>
+                {accessibleError ? (
+                  <p className="text-xs text-amber-300">{accessibleError}</p>
+                ) : null}
+              </div>
+              {accessibleIds.length > 0 ? (
+                <ul className="mt-2 space-y-1 rounded-lg border border-white/10 bg-zinc-950/40 p-2 text-xs">
+                  {accessibleIds.map((id) => (
+                    <li key={id} className="flex items-center justify-between gap-2">
+                      <code className="text-zinc-300">{id}</code>
+                      <button
+                        type="button"
+                        className="shrink-0 text-[color:var(--brand)] hover:underline"
+                        onClick={() =>
+                          setGadsForm((f) => ({ ...f, customerId: id }))
+                        }
+                      >
+                        Folosește ca Customer ID
+                      </button>
+                      <button
+                        type="button"
+                        className="shrink-0 text-zinc-400 hover:underline"
+                        onClick={() =>
+                          setGadsForm((f) => ({
+                            ...f,
+                            loginCustomerId: id,
+                          }))
+                        }
+                      >
+                        ca MCC
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
+              <p className="text-[11px] text-zinc-500">
+                Dacă contul e sub un manager (MCC): Customer ID = contul cu
+                campanii, Login Customer ID = ID-ul MCC din listă.
+              </p>
             </div>
             <div className="space-y-1.5">
               <Label>Login Customer ID (MCC, opțional)</Label>
@@ -508,7 +587,7 @@ function SetariPageInner() {
                     loginCustomerId: e.target.value,
                   }))
                 }
-                placeholder="gol = același cu Customer ID"
+                placeholder="gol = cont direct (fără MCC)"
               />
             </div>
 
