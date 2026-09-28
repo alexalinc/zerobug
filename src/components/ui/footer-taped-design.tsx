@@ -116,30 +116,30 @@ export function FooterTapedDesign() {
             </p>
           </div>
 
-          <div className="flex flex-col items-start gap-2 md:mx-4 md:flex-row md:gap-20">
-            <div className="flex flex-col gap-1 md:gap-4">
+          <div className="grid w-full grid-cols-2 gap-6 sm:grid-cols-3 md:mx-4 md:flex md:w-auto md:gap-20">
+            <div className="flex flex-col gap-2 md:gap-4">
               <h4 className="text-md font-semibold uppercase text-zinc-500">
                 Navigare
               </h4>
-              <div className="flex flex-wrap items-start gap-2 text-sm md:flex-col">
+              <div className="flex flex-col items-start gap-2 text-sm">
                 {NAV_LINKS.map((link) => (
                   <FooterNavLink key={link.href} link={link} />
                 ))}
               </div>
             </div>
 
-            <div className="hidden flex-col gap-1 md:flex md:gap-4">
+            <div className="flex flex-col gap-2 md:gap-4">
               <h4 className="text-md whitespace-nowrap font-semibold uppercase text-zinc-500">
                 Servicii
               </h4>
-              <div className="flex flex-wrap items-start gap-2 text-sm md:flex-col">
+              <div className="flex flex-col items-start gap-2 text-sm">
                 {SERVICE_LINKS.map((link) => (
                   <FooterNavLink key={link.href} link={link} />
                 ))}
               </div>
             </div>
 
-            <div className="hidden flex-col gap-4 md:flex">
+            <div className="col-span-2 flex flex-col gap-2 sm:col-span-1 md:gap-4">
               <h4 className="text-md whitespace-nowrap font-semibold uppercase text-zinc-500">
                 Viitor <SoonBadge />
               </h4>
