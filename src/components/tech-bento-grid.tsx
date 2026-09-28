@@ -36,7 +36,7 @@ const TECH: {
   {
     name: "Stripe",
     blurb: "Plăți & abonamente",
-    logo: "https://cdn.simpleicons.org/stripe/635BFF",
+    logo: "https://cdn.jsdelivr.net/npm/simple-icons@11.4.0/icons/stripe.svg",
     image:
       "https://images.unsplash.com/photo-1556742044-3c52d6e88c62?auto=format&fit=crop&w=900&q=80",
     href: "/servicii/e-commerce",
@@ -72,7 +72,7 @@ const TECH: {
   {
     name: "Shopify",
     blurb: "Magazine online gata de scalat",
-    logo: "https://cdn.simpleicons.org/shopify/95BF47",
+    logo: "https://cdn.jsdelivr.net/npm/simple-icons@11.4.0/icons/shopify.svg",
     image:
       "https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?auto=format&fit=crop&w=900&q=80",
     href: "/servicii/e-commerce",
@@ -81,7 +81,7 @@ const TECH: {
   {
     name: "Google Ads",
     blurb: "Tracking, POAS & analytics",
-    logo: "https://cdn.simpleicons.org/googleads/4285F4",
+    logo: "https://cdn.jsdelivr.net/npm/simple-icons@11.4.0/icons/googleads.svg",
     image:
       "https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&w=900&q=80",
     href: "/servicii/google-ads-analytics",

@@ -12,7 +12,7 @@ const CONTENT_SECURITY_POLICY = [
   "object-src 'none'",
   "frame-ancestors 'none'",
   "form-action 'self'",
-  "img-src 'self' data: blob: https://images.unsplash.com https://*.stripe.com https://*.googleusercontent.com https://www.google.com https://www.googletagmanager.com",
+  "img-src 'self' data: blob: https://images.unsplash.com https://cdn.jsdelivr.net https://*.stripe.com https://*.googleusercontent.com https://www.google.com https://www.googletagmanager.com",
   "font-src 'self' data:",
   "style-src 'self' 'unsafe-inline'",
   "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://js.stripe.com https://www.googletagmanager.com https://www.googleadservices.com https://www.google.com https://googleads.g.doubleclick.net",
@@ -31,6 +31,10 @@ const nextConfig: NextConfig = {
       {
         protocol: "https",
         hostname: "images.unsplash.com",
+      },
+      {
+        protocol: "https",
+        hostname: "cdn.jsdelivr.net",
       },
     ],
   },
