@@ -37,6 +37,10 @@ export type ServiceVisual =
   | { kind: "logo"; src: string; alt: string }
   | { kind: "icon"; Icon: LucideIcon };
 
+/** Brand SVGs via jsDelivr (cdn.simpleicons.org is Cloudflare-challenged / 403). */
+const SI = (slug: string) =>
+  `https://cdn.jsdelivr.net/npm/simple-icons@11.4.0/icons/${slug}.svg`;
+
 const LOGO = {
   wordpress:
     "https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/wordpress/wordpress-plain.svg",
@@ -44,18 +48,16 @@ const LOGO = {
     "https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/react/react-original.svg",
   nextjs:
     "https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/nextjs/nextjs-original.svg",
-  shopify: "https://cdn.simpleicons.org/shopify/95BF47",
-  woocommerce: "https://cdn.simpleicons.org/woocommerce/96588A",
-  magento:
-    "https://cdn.jsdelivr.net/npm/simple-icons@11.4.0/icons/magento.svg",
-  prestashop:
-    "https://cdn.jsdelivr.net/npm/simple-icons@11.4.0/icons/prestashop.svg",
-  stripe: "https://cdn.simpleicons.org/stripe/635BFF",
-  google: "https://cdn.simpleicons.org/google/4285F4",
-  googleads: "https://cdn.simpleicons.org/googleads/4285F4",
-  googleanalytics: "https://cdn.simpleicons.org/googleanalytics/E37400",
-  googletagmanager: "https://cdn.simpleicons.org/googletagmanager/246FDB",
-  meta: "https://cdn.simpleicons.org/meta/0668E1",
+  shopify: SI("shopify"),
+  woocommerce: SI("woocommerce"),
+  magento: SI("magento"),
+  prestashop: SI("prestashop"),
+  stripe: SI("stripe"),
+  google: SI("google"),
+  googleads: SI("googleads"),
+  googleanalytics: SI("googleanalytics"),
+  googletagmanager: SI("googletagmanager"),
+  meta: SI("meta"),
   apple:
     "https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/apple/apple-original.svg",
   android:
@@ -64,7 +66,7 @@ const LOGO = {
     "https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/flutter/flutter-original.svg",
   firebase:
     "https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/firebase/firebase-plain.svg",
-  dpd: "https://cdn.simpleicons.org/dpd/DC0032",
+  dpd: SI("dpd"),
 } as const;
 
 /** Exact service name → visual (logos for brands, lucide otherwise). */

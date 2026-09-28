@@ -75,11 +75,11 @@ const ResponsiveHeroBanner: React.FC<ResponsiveHeroBannerProps> = ({
     },
     {
       name: "Shopify",
-      logo: "https://cdn.simpleicons.org/shopify/95BF47",
+      logo: "https://cdn.jsdelivr.net/npm/simple-icons@11.4.0/icons/shopify.svg",
     },
     {
       name: "WooCommerce",
-      logo: "https://cdn.simpleicons.org/woocommerce/96588A",
+      logo: "https://cdn.jsdelivr.net/npm/simple-icons@11.4.0/icons/woocommerce.svg",
     },
     {
       name: "Flutter",
@@ -87,11 +87,11 @@ const ResponsiveHeroBanner: React.FC<ResponsiveHeroBannerProps> = ({
     },
     {
       name: "Stripe",
-      logo: "https://cdn.simpleicons.org/stripe/635BFF",
+      logo: "https://cdn.jsdelivr.net/npm/simple-icons@11.4.0/icons/stripe.svg",
     },
     {
       name: "Google Ads",
-      logo: "https://cdn.simpleicons.org/googleads/4285F4",
+      logo: "https://cdn.jsdelivr.net/npm/simple-icons@11.4.0/icons/googleads.svg",
     },
   ],
 }) => {
