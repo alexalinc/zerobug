@@ -23,6 +23,7 @@ import {
   ExternalLink,
   Check,
   BarChart3,
+  Mail,
 } from "lucide-react";
 import { useQuery } from "convex/react";
 import { api } from "@convex/_generated/api";
@@ -36,6 +37,7 @@ const NAV = [
   { href: "/admin/abonamente", label: "Abonamente", icon: CreditCard },
   { href: "/admin/facturi", label: "Facturi", icon: FileText },
   { href: "/admin/lead-uri", label: "Cereri ofertă", icon: Inbox },
+  { href: "/admin/emails", label: "Emails", icon: Mail },
   { href: "/admin/seo", label: "SEO", icon: Search },
   { href: "/admin/setari", label: "Setări", icon: Settings },
 ];
