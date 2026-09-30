@@ -341,12 +341,8 @@ const FORM_STEPS: Record<
     { id: "submit", label: "Trimis" },
   ],
   maintenance: [
-    { id: "view", label: "Văzut wizard" },
-    { id: "1", label: "Pas 1 — Site" },
-    { id: "2", label: "Pas 2 — Business" },
-    { id: "3", label: "Pas 3 — Infrastructură" },
-    { id: "4", label: "Pas 4 — Nevoi" },
-    { id: "5", label: "Pas 5 — Contact" },
+    { id: "view", label: "Văzut formular" },
+    { id: "1", label: "Început completare" },
     { id: "submit", label: "Trimis" },
   ],
 };
@@ -696,15 +692,6 @@ export const dashboard = query({
       if (maxDrop >= 40 && starts >= 5) {
         reasons.push(
           `Cădere mare la „${maxDropLabel}” (${maxDrop}% drop-off).`,
-        );
-      }
-      if (
-        formType === "maintenance" &&
-        starts >= 5 &&
-        (reached.get("5")?.size ?? 0) < starts * 0.4
-      ) {
-        reasons.push(
-          "Mulți abandonează înainte de pasul Contact — wizard-ul pare lung.",
         );
       }
       if (

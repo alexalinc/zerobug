@@ -48,8 +48,9 @@ export default function LeaduriPage() {
           Cereri ofertă
         </h1>
         <p className="mt-2 text-sm text-zinc-400">
-          Lead-uri din formularele de pe site — mentenanță include estimare +
-          detalii din wizard. Coloana Google Ads arată sync-ul conversiei.
+          Lead-uri din formularele de pe site — mentenanță include plan
+          orientativ, URL site și contact. Coloana Google Ads arată sync-ul
+          conversiei.
         </p>
       </div>
       <div className="overflow-x-auto border border-white/10">
@@ -58,7 +59,7 @@ export default function LeaduriPage() {
             <tr>
               <th className="p-3">Tip</th>
               <th className="p-3">Contact</th>
-              <th className="p-3">Servicii / estimare</th>
+              <th className="p-3">Servicii / plan</th>
               <th className="p-3">Mesaj</th>
               <th className="p-3">Status</th>
               <th className="p-3">Google Ads</th>
@@ -133,13 +134,16 @@ export default function LeaduriPage() {
                         Nevoi: {l.addons.join(", ")}
                       </p>
                     )}
-                    {formatBudget(l.budget) && (
+                    {l.type === "maintenance" && l.budget != null ? (
                       <p className="mt-2 font-medium text-white">
-                        {l.type === "maintenance"
-                          ? `Estimare până la: ${formatBudget(l.budget)} + TVA`
-                          : `Buget: ${formatBudget(l.budget)}`}
+                        Orientativ: {l.budget.toLocaleString("ro-RO")} € + TVA
+                        /lună
                       </p>
-                    )}
+                    ) : formatBudget(l.budget) ? (
+                      <p className="mt-2 font-medium text-white">
+                        Buget: {formatBudget(l.budget)}
+                      </p>
+                    ) : null}
                   </td>
                   <td className="p-3 max-w-xs whitespace-pre-wrap text-zinc-400">
                     {l.message || "—"}

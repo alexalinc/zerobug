@@ -36,7 +36,7 @@ const SOURCE_COLORS: Record<TrafficSource, string> = {
 const FORM_LABEL: Record<string, string> = {
   contact: "Contact",
   service_quote: "Ofertă serviciu",
-  maintenance: "Mentenanță (wizard)",
+  maintenance: "Mentenanță",
 };
 
 const COMPLEXITY_LABEL = {
