@@ -10,13 +10,23 @@ function formatMoney(n: number) {
   return `${n.toFixed(2)} lei`;
 }
 
+/** Helvetica/WinAnsi can't encode Romanian diacritics — fold to ASCII. */
+function pdfSafe(text: string): string {
+  return text
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/ș|ş/gi, (c) => (c === c.toUpperCase() ? "S" : "s"))
+    .replace(/ț|ţ/gi, (c) => (c === c.toUpperCase() ? "T" : "t"))
+    .replace(/[^\x20-\x7E\xA0-\xFF]/g, "?");
+}
+
 function wrapText(
   text: string,
   font: { widthOfTextAtSize: (t: string, s: number) => number },
   size: number,
   maxWidth: number,
 ): string[] {
-  const words = text.split(/\s+/);
+  const words = pdfSafe(text).split(/\s+/);
   const lines: string[] = [];
   let current = "";
   for (const word of words) {
@@ -82,7 +92,7 @@ async function buildInvoicePdf(data: {
     isBold = false,
     color = rgb(0.1, 0.1, 0.1),
   ) => {
-    page.drawText(text, {
+    page.drawText(pdfSafe(text), {
       x,
       y,
       size,
@@ -100,7 +110,7 @@ async function buildInvoicePdf(data: {
     let localY = y;
     lines.forEach((line, i) => {
       if (!line) return;
-      page.drawText(line, {
+      page.drawText(pdfSafe(line), {
         x,
         y: localY,
         size,

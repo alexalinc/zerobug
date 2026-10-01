@@ -283,9 +283,15 @@ export const regeneratePdf = action({
       id: args.invoiceId,
     });
     if (!inv) throw new Error("Factura nu a fost găsită");
-    await ctx.runAction(internal.invoicesActions.generatePdfOnly, {
-      invoiceId: args.invoiceId,
-    });
+    try {
+      await ctx.runAction(internal.invoicesActions.generatePdfOnly, {
+        invoiceId: args.invoiceId,
+      });
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Regenerarea PDF a eșuat";
+      throw new Error(message.replace(/^Uncaught Error:\s*/g, ""));
+    }
     return null;
   },
 });
