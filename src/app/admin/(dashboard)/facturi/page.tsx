@@ -55,6 +55,8 @@ type InvoiceListItem = {
   grossAmount: number;
   emailStatus: string;
   emailError?: string;
+  accountingEmailStatus?: string;
+  accountingEmailError?: string;
   pdfStorageId?: Id<"_storage">;
   company?: { name?: string; email?: string } | null;
 };
@@ -98,14 +100,18 @@ export default function FacturiPage() {
   );
   const resend = useAction(api.invoices.resendEmail);
   const regeneratePdf = useAction(api.invoices.regeneratePdf);
+  const sendToAccounting = useAction(api.invoices.sendToAccounting);
 
   const [showGenerate, setShowGenerate] = useState(false);
   const [busyId, setBusyId] = useState<Id<"companies"> | null>(null);
   const [sendingId, setSendingId] = useState<Id<"invoices"> | null>(null);
+  const [accountingId, setAccountingId] =
+    useState<Id<"invoices"> | null>(null);
   const [regeneratingId, setRegeneratingId] =
     useState<Id<"invoices"> | null>(null);
   const [selected, setSelected] = useState<Set<Id<"invoices">>>(new Set());
   const [downloading, setDownloading] = useState(false);
+  const [sendingAccountingBulk, setSendingAccountingBulk] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const selectableIds = useMemo(
@@ -178,6 +184,33 @@ export default function FacturiPage() {
     }
   }
 
+  async function onSendAccounting(invoiceIds: Id<"invoices">[]) {
+    if (!token || invoiceIds.length === 0) return;
+    const bulk = invoiceIds.length > 1;
+    if (bulk) setSendingAccountingBulk(true);
+    else setAccountingId(invoiceIds[0]!);
+    setError(null);
+    try {
+      const result = await sendToAccounting({
+        sessionToken: token,
+        invoiceIds,
+      });
+      setSelected(new Set());
+      setError(
+        `Trimis la contabilitate (${result.to}): ${result.sent} factură(i).`,
+      );
+    } catch (e) {
+      setError(
+        e instanceof Error
+          ? e.message
+          : "Trimiterea către contabilitate a eșuat",
+      );
+    } finally {
+      setSendingAccountingBulk(false);
+      setAccountingId(null);
+    }
+  }
+
   async function onDownloadSelected() {
     if (!token || selected.size === 0) return;
     setDownloading(true);
@@ -232,7 +265,14 @@ export default function FacturiPage() {
       </div>
 
       {error ? (
-        <p className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-2 text-sm text-red-300">
+        <p
+          className={cn(
+            "rounded-xl border px-4 py-2 text-sm",
+            error.startsWith("Trimis la contabilitate")
+              ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-300"
+              : "border-red-500/30 bg-red-500/10 text-red-300",
+          )}
+        >
           {error}
         </p>
       ) : null}
@@ -368,12 +408,24 @@ export default function FacturiPage() {
               <Button
                 type="button"
                 size="sm"
-                disabled={downloading}
+                disabled={downloading || sendingAccountingBulk}
                 onClick={() => void onDownloadSelected()}
               >
                 {downloading
                   ? "Se descarcă…"
                   : `Descarcă PDF (${selected.size})`}
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                disabled={downloading || sendingAccountingBulk}
+                onClick={() =>
+                  void onSendAccounting(Array.from(selected))
+                }
+              >
+                {sendingAccountingBulk
+                  ? "Se trimite la contabilitate…"
+                  : `Trimite la contabilitate (${selected.size})`}
               </Button>
             </div>
           </div>
@@ -412,8 +464,10 @@ export default function FacturiPage() {
                   selected={selected.has(inv._id)}
                   onToggle={() => toggleOne(inv._id)}
                   sending={sendingId === inv._id}
+                  sendingAccounting={accountingId === inv._id}
                   regenerating={regeneratingId === inv._id}
                   onSend={() => onSend(inv._id)}
+                  onSendAccounting={() => onSendAccounting([inv._id])}
                   onRegeneratePdf={() => onRegeneratePdf(inv._id)}
                 />
               ))}
@@ -441,8 +495,10 @@ function InvoiceRow({
   selected,
   onToggle,
   sending,
+  sendingAccounting,
   regenerating,
   onSend,
+  onSendAccounting,
   onRegeneratePdf,
 }: {
   inv: InvoiceListItem;
@@ -450,8 +506,10 @@ function InvoiceRow({
   selected: boolean;
   onToggle: () => void;
   sending: boolean;
+  sendingAccounting: boolean;
   regenerating: boolean;
   onSend: () => void;
+  onSendAccounting: () => void;
   onRegeneratePdf: () => void;
 }) {
   const pdfUrl = useQuery(
@@ -459,6 +517,8 @@ function InvoiceRow({
     withAdminToken(sessionToken, { id: inv._id }),
   );
   const hasPdf = Boolean(inv.pdfStorageId);
+  const accountingSent = inv.accountingEmailStatus === "sent";
+  const accountingFailed = inv.accountingEmailStatus === "failed";
 
   return (
     <tr className="border-b border-white/5">
@@ -487,19 +547,33 @@ function InvoiceRow({
         {formatRon(inv.grossAmount)}
       </td>
       <td className="p-3">
-        <span
-          className={cn(
-            "rounded-full px-2 py-0.5 text-xs",
-            inv.emailStatus === "sent"
-              ? "bg-emerald-500/15 text-emerald-400"
-              : inv.emailStatus === "failed"
-                ? "bg-red-500/15 text-red-400"
-                : "bg-amber-500/15 text-amber-400",
-          )}
-          title={inv.emailError}
-        >
-          {emailLabel(inv.emailStatus)}
-        </span>
+        <div className="flex flex-col gap-1">
+          <span
+            className={cn(
+              "w-fit rounded-full px-2 py-0.5 text-xs",
+              inv.emailStatus === "sent"
+                ? "bg-emerald-500/15 text-emerald-400"
+                : inv.emailStatus === "failed"
+                  ? "bg-red-500/15 text-red-400"
+                  : "bg-amber-500/15 text-amber-400",
+            )}
+            title={inv.emailError}
+          >
+            {emailLabel(inv.emailStatus)}
+          </span>
+          {accountingSent ? (
+            <span className="w-fit rounded-full bg-sky-500/15 px-2 py-0.5 text-xs text-sky-300">
+              Trimis la contabilitate
+            </span>
+          ) : accountingFailed ? (
+            <span
+              className="w-fit rounded-full bg-red-500/15 px-2 py-0.5 text-xs text-red-400"
+              title={inv.accountingEmailError}
+            >
+              Contabilitate eșuat
+            </span>
+          ) : null}
+        </div>
         {inv.emailStatus === "failed" && inv.emailError ? (
           <p className="mt-1 max-w-[180px] text-[11px] leading-snug text-red-400/80">
             {inv.emailError}
@@ -545,6 +619,18 @@ function InvoiceRow({
             : inv.emailStatus === "sent"
               ? "Retrimite email"
               : "Trimite pe email"}
+        </Button>
+        <Button
+          size="sm"
+          variant="outline"
+          disabled={!hasPdf || sendingAccounting}
+          onClick={onSendAccounting}
+        >
+          {sendingAccounting
+            ? "Se trimite…"
+            : accountingSent
+              ? "Retrimite contabilitate"
+              : "Trimite contabilitate"}
         </Button>
       </td>
     </tr>

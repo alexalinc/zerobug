@@ -87,6 +87,15 @@ export default defineSchema({
       v.literal("failed"),
     ),
     emailError: v.optional(v.string()),
+    /** Separate from client email — sent to accounting inbox */
+    accountingEmailStatus: v.optional(
+      v.union(
+        v.literal("pending"),
+        v.literal("sent"),
+        v.literal("failed"),
+      ),
+    ),
+    accountingEmailError: v.optional(v.string()),
     stripeInvoiceId: v.optional(v.string()),
     status: v.union(
       v.literal("draft"),

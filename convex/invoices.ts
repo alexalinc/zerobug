@@ -244,6 +244,7 @@ export const createRecord = internalMutation({
       ...args,
       currency: "RON",
       emailStatus: "pending",
+      accountingEmailStatus: "pending",
       status: "issued",
     });
   },
@@ -283,6 +284,31 @@ export const markEmail = internalMutation({
   },
 });
 
+export const markAccountingEmail = internalMutation({
+  args: {
+    invoiceIds: v.array(v.id("invoices")),
+    accountingEmailStatus: v.union(
+      v.literal("pending"),
+      v.literal("sent"),
+      v.literal("failed"),
+    ),
+    accountingEmailError: v.optional(v.string()),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    for (const invoiceId of args.invoiceIds) {
+      await ctx.db.patch(invoiceId, {
+        accountingEmailStatus: args.accountingEmailStatus,
+        accountingEmailError:
+          args.accountingEmailStatus === "sent"
+            ? undefined
+            : args.accountingEmailError,
+      });
+    }
+    return null;
+  },
+});
+
 export const getInternal = internalQuery({
   args: { id: v.id("invoices") },
   returns: v.union(v.any(), v.null()),
@@ -291,6 +317,21 @@ export const getInternal = internalQuery({
     if (!inv) return null;
     const company = await ctx.db.get(inv.companyId);
     return { ...inv, company };
+  },
+});
+
+export const getManyInternal = internalQuery({
+  args: { ids: v.array(v.id("invoices")) },
+  returns: v.array(v.any()),
+  handler: async (ctx, args) => {
+    const result = [];
+    for (const id of args.ids.slice(0, 50)) {
+      const inv = await ctx.db.get(id);
+      if (!inv) continue;
+      const company = await ctx.db.get(inv.companyId);
+      result.push({ ...inv, company });
+    }
+    return result;
   },
 });
 
@@ -303,6 +344,27 @@ export const resendEmail = action({
       invoiceId: args.invoiceId,
     });
     return null;
+  },
+});
+
+/** Send one or more invoices to accounting in a single email (all PDFs attached). */
+export const sendToAccounting = action({
+  args: {
+    sessionToken: v.string(),
+    invoiceIds: v.array(v.id("invoices")),
+  },
+  returns: v.object({
+    sent: v.number(),
+    to: v.string(),
+  }),
+  handler: async (ctx, args) => {
+    await requireAdminSession(args.sessionToken);
+    if (args.invoiceIds.length === 0) {
+      throw new Error("Selectează cel puțin o factură");
+    }
+    return await ctx.runAction(internal.invoicesActions.sendToAccounting, {
+      invoiceIds: args.invoiceIds.slice(0, 50),
+    });
   },
 });
 

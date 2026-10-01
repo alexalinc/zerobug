@@ -3,6 +3,7 @@
 import { v } from "convex/values";
 import { internalAction } from "./_generated/server";
 import { internal } from "./_generated/api";
+import type { Id } from "./_generated/dataModel";
 import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
 import { Resend } from "resend";
 
@@ -331,18 +332,6 @@ export const sendEmailOnly = internalAction({
         }
       }
 
-      const issuer = await ctx.runQuery(internal.settings.getIssuerInternal, {});
-      const accountingEmail =
-        typeof issuer?.accountingEmail === "string"
-          ? issuer.accountingEmail.trim()
-          : "";
-      const bcc =
-        accountingEmail &&
-        accountingEmail.toLowerCase() !==
-          invoice.company.email.trim().toLowerCase()
-          ? [accountingEmail]
-          : undefined;
-
       console.log("Sending invoice email", {
         invoiceId: args.invoiceId,
         from,
@@ -352,7 +341,6 @@ export const sendEmailOnly = internalAction({
       const { data, error } = await resend.emails.send({
         from,
         to: invoice.company.email,
-        bcc,
         subject: `Factura ${invoice.number} — ZeroBug`,
         html: `
           <p>Bună ziua,</p>
@@ -392,5 +380,140 @@ export const sendEmailOnly = internalAction({
       });
     }
     return null;
+  },
+});
+
+/** One email to accounting with all selected invoice PDFs attached. */
+export const sendToAccounting = internalAction({
+  args: { invoiceIds: v.array(v.id("invoices")) },
+  returns: v.object({ sent: v.number(), to: v.string() }),
+  handler: async (ctx, args) => {
+    const from = "ZeroBug <contact@mercana.ro>";
+    const apiKey = process.env.RESEND_API_KEY;
+    const invoices: Array<{
+      _id: Id<"invoices">;
+      number: string;
+      periodLabel: string;
+      grossAmount: number;
+      pdfStorageId?: Id<"_storage">;
+      company?: { name?: string } | null;
+    }> = await ctx.runQuery(internal.invoices.getManyInternal, {
+      ids: args.invoiceIds,
+    });
+
+    if (invoices.length === 0) {
+      throw new Error("Nicio factură găsită");
+    }
+
+    const issuer = await ctx.runQuery(internal.settings.getIssuerInternal, {});
+    const to =
+      (typeof issuer?.accountingEmail === "string" &&
+        issuer.accountingEmail.trim()) ||
+      "exactexpert@yahoo.com";
+
+    const ids = invoices.map((inv) => inv._id);
+
+    if (!apiKey) {
+      await ctx.runMutation(internal.invoices.markAccountingEmail, {
+        invoiceIds: ids,
+        accountingEmailStatus: "failed",
+        accountingEmailError: "RESEND_API_KEY not configured",
+      });
+      throw new Error("RESEND_API_KEY not configured");
+    }
+
+    const attachments: Array<{ filename: string; content: Buffer }> = [];
+    const included: Array<{
+      _id: Id<"invoices">;
+      number: string;
+      periodLabel: string;
+      companyName: string;
+      grossAmount: number;
+    }> = [];
+
+    for (const inv of invoices) {
+      if (!inv.pdfStorageId) continue;
+      const url = await ctx.storage.getUrl(inv.pdfStorageId);
+      if (!url) continue;
+      const res = await fetch(url);
+      if (!res.ok) continue;
+      const ab = await res.arrayBuffer();
+      attachments.push({
+        filename: `${inv.number}.pdf`,
+        content: Buffer.from(ab),
+      });
+      included.push({
+        _id: inv._id,
+        number: inv.number,
+        periodLabel: inv.periodLabel,
+        companyName: inv.company?.name ?? "—",
+        grossAmount: inv.grossAmount,
+      });
+    }
+
+    if (attachments.length === 0) {
+      await ctx.runMutation(internal.invoices.markAccountingEmail, {
+        invoiceIds: ids,
+        accountingEmailStatus: "failed",
+        accountingEmailError: "Nicio factură selectată nu are PDF",
+      });
+      throw new Error("Nicio factură selectată nu are PDF");
+    }
+
+    const includedIds = included.map((i) => i._id);
+    const listHtml = included
+      .map(
+        (inv) =>
+          `<li><strong>${inv.number}</strong> — ${inv.companyName} (${inv.periodLabel}) — ${inv.grossAmount.toFixed(2)} lei</li>`,
+      )
+      .join("");
+
+    try {
+      const resend = new Resend(apiKey);
+      const { error } = await resend.emails.send({
+        from,
+        to,
+        subject:
+          included.length === 1
+            ? `Factură ${included[0]!.number} — ZeroBug (contabilitate)`
+            : `Facturi ZeroBug (${included.length}) — contabilitate`,
+        html: `
+          <p>Bună ziua,</p>
+          <p>Atașat găsiți ${included.length === 1 ? "factura" : `cele ${included.length} facturi`} pentru contabilitate:</p>
+          <ul>${listHtml}</ul>
+          <p>Cu stimă,<br/>Echipa ZeroBug</p>
+        `,
+        attachments,
+      });
+
+      if (error) {
+        const message = `${error.message || "Resend error"} (from: ${from})`;
+        await ctx.runMutation(internal.invoices.markAccountingEmail, {
+          invoiceIds: includedIds,
+          accountingEmailStatus: "failed",
+          accountingEmailError: message,
+        });
+        throw new Error(message);
+      }
+
+      await ctx.runMutation(internal.invoices.markAccountingEmail, {
+        invoiceIds: includedIds,
+        accountingEmailStatus: "sent",
+      });
+
+      return { sent: included.length, to };
+    } catch (error) {
+      if (error instanceof Error && error.message.includes("(from:")) {
+        throw error;
+      }
+      const message =
+        error instanceof Error ? error.message : "Email contabilitate eșuat";
+      await ctx.runMutation(internal.invoices.markAccountingEmail, {
+        invoiceIds: includedIds,
+        accountingEmailStatus: "failed",
+        accountingEmailError: message,
+      });
+      throw new Error(message);
+    }
   },
 });
