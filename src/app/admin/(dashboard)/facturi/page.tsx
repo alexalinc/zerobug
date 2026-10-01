@@ -12,6 +12,20 @@ import type { Id } from "@convex/_generated/dataModel";
 import { formatRon } from "@/lib/vat";
 import { useMemo, useState } from "react";
 import { cn } from "@/lib/utils";
+import {
+  Calculator,
+  CheckCircle2,
+  Download,
+  Eye,
+  FilePlus2,
+  FileText,
+  Hash,
+  Loader2,
+  Mail,
+  MailWarning,
+  RefreshCw,
+  X,
+} from "lucide-react";
 
 function currentPeriodKey() {
   const d = new Date();
@@ -50,6 +64,7 @@ type InvoiceListItem = {
   number: string;
   series?: string;
   periodLabel: string;
+  periodKey?: string;
   netAmount: number;
   vatAmount: number;
   grossAmount: number;
@@ -77,6 +92,56 @@ async function downloadPdfFile(url: string, filename: string) {
   } catch {
     window.open(url, "_blank", "noopener,noreferrer");
   }
+}
+
+function StatusPill({
+  tone,
+  children,
+  title,
+}: {
+  tone: "ok" | "warn" | "danger" | "info" | "muted";
+  children: React.ReactNode;
+  title?: string;
+}) {
+  return (
+    <span
+      title={title}
+      className={cn(
+        "inline-flex w-fit items-center gap-1 rounded-md border px-2 py-0.5 text-[11px] font-medium tracking-wide",
+        tone === "ok" &&
+          "border-emerald-500/20 bg-emerald-500/10 text-emerald-300",
+        tone === "warn" &&
+          "border-amber-500/20 bg-amber-500/10 text-amber-300",
+        tone === "danger" && "border-red-500/20 bg-red-500/10 text-red-300",
+        tone === "info" && "border-sky-500/20 bg-sky-500/10 text-sky-300",
+        tone === "muted" && "border-white/10 bg-white/[0.04] text-zinc-400",
+      )}
+    >
+      {children}
+    </span>
+  );
+}
+
+function MetricCard({
+  label,
+  value,
+  hint,
+}: {
+  label: string;
+  value: string;
+  hint?: string;
+}) {
+  return (
+    <div className="rounded-2xl border border-white/[0.08] bg-gradient-to-b from-white/[0.05] to-transparent p-4">
+      <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-500">
+        {label}
+      </p>
+      <p className="mt-2 font-semibold tracking-tight text-white tabular-nums text-xl md:text-2xl">
+        {value}
+      </p>
+      {hint ? <p className="mt-1 text-xs text-zinc-500">{hint}</p> : null}
+    </div>
+  );
 }
 
 export default function FacturiPage() {
@@ -125,6 +190,24 @@ export default function FacturiPage() {
   const allSelectableSelected =
     selectableIds.length > 0 &&
     selectableIds.every((id) => selected.has(id));
+
+  const summary = useMemo(() => {
+    const list = invoices ?? [];
+    const thisMonth = list.filter((i) => i.periodKey === periodKey);
+    const scope = thisMonth.length > 0 ? thisMonth : list;
+    const gross = scope.reduce((s, i) => s + i.grossAmount, 0);
+    const sent = scope.filter((i) => i.emailStatus === "sent").length;
+    const accounting = scope.filter(
+      (i) => i.accountingEmailStatus === "sent",
+    ).length;
+    return {
+      count: scope.length,
+      gross,
+      sent,
+      accounting,
+      scopedToMonth: thisMonth.length > 0,
+    };
+  }, [invoices, periodKey]);
 
   function toggleOne(id: Id<"invoices">) {
     setSelected((prev) => {
@@ -220,7 +303,9 @@ export default function FacturiPage() {
         sessionToken: token,
         ids: Array.from(selected),
       });
-      const withPdf = rows.filter((r) => r.url);
+      const withPdf = rows.filter(
+        (r: { url: string | null }) => Boolean(r.url),
+      );
       if (withPdf.length === 0) {
         setError("Nicio factură selectată nu are PDF.");
         return;
@@ -245,121 +330,191 @@ export default function FacturiPage() {
     }
   }
 
+  const loading = invoices === undefined;
+  const isSuccessBanner = error?.startsWith("Trimis la contabilitate");
+
   return (
     <div className="space-y-8">
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-semibold tracking-tight">Facturi</h1>
-          <p className="mt-2 text-sm text-zinc-400">
-            Generare manuală sau automată pe 1 ale lunii. Numărul crește cu +1
-            la fiecare factură; emailul pleacă automat către client.
-          </p>
+      {/* Hero */}
+      <section className="relative overflow-hidden rounded-3xl border border-white/[0.08] bg-[linear-gradient(135deg,rgba(255,255,255,0.06)_0%,rgba(255,255,255,0.02)_40%,transparent_100%)] p-6 md:p-8">
+        <div
+          aria-hidden
+          className="pointer-events-none absolute -right-16 -top-20 h-56 w-56 rounded-full bg-[color:var(--brand)]/15 blur-3xl"
+        />
+        <div
+          aria-hidden
+          className="pointer-events-none absolute -bottom-24 left-1/3 h-40 w-72 rounded-full bg-white/[0.04] blur-3xl"
+        />
+
+        <div className="relative flex flex-wrap items-start justify-between gap-6">
+          <div className="max-w-xl">
+            <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-black/20 px-3 py-1 text-[11px] font-medium uppercase tracking-[0.16em] text-zinc-400">
+              <FileText className="size-3.5 text-[color:var(--brand)]" />
+              Billing
+            </div>
+            <h1 className="mt-4 text-3xl font-semibold tracking-tight text-white md:text-4xl">
+              Facturi
+            </h1>
+            <p className="mt-2 text-sm leading-relaxed text-zinc-400">
+              Emisiune lunară pe 1, PDF-uri și trimitere către client sau
+              contabilitate — într-un singur loc.
+            </p>
+            <p className="mt-3 text-xs text-zinc-500">
+              Perioada curentă ·{" "}
+              <span className="text-zinc-300">{periodLabel(periodKey)}</span>
+            </p>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="min-w-[160px] rounded-2xl border border-white/10 bg-black/30 px-4 py-3 backdrop-blur-sm">
+              <div className="flex items-center gap-1.5 text-[11px] uppercase tracking-[0.14em] text-zinc-500">
+                <Hash className="size-3.5" />
+                Următorul nr.
+              </div>
+              <p className="mt-1.5 font-semibold tracking-tight text-[color:var(--brand)] tabular-nums text-lg">
+                {nextNumber?.formatted ?? "—"}
+              </p>
+              <p className="mt-0.5 text-[11px] text-zinc-600">
+                {new Date().toLocaleDateString("ro-RO")}
+              </p>
+            </div>
+            <Button
+              type="button"
+              onClick={() => setShowGenerate((v) => !v)}
+              className="h-11 gap-2 px-4"
+            >
+              {showGenerate ? (
+                <>
+                  <X className="size-4" />
+                  Închide
+                </>
+              ) : (
+                <>
+                  <FilePlus2 className="size-4" />
+                  Generează factură
+                </>
+              )}
+            </Button>
+          </div>
         </div>
-        <Button
-          type="button"
-          onClick={() => setShowGenerate((v) => !v)}
-          className="shrink-0"
-        >
-          {showGenerate ? "Închide generarea" : "Generează factură"}
-        </Button>
+      </section>
+
+      {/* Metrics */}
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <MetricCard
+          label={summary.scopedToMonth ? "Facturi luna asta" : "Facturi"}
+          value={loading ? "—" : String(summary.count)}
+        />
+        <MetricCard
+          label="Total brut"
+          value={loading ? "—" : formatRon(summary.gross)}
+          hint={summary.scopedToMonth ? periodLabel(periodKey) : "Toate perioadele"}
+        />
+        <MetricCard
+          label="Trimise client"
+          value={loading ? "—" : String(summary.sent)}
+          hint={
+            loading
+              ? undefined
+              : `${summary.count - summary.sent} în așteptare / eșuate`
+          }
+        />
+        <MetricCard
+          label="La contabilitate"
+          value={loading ? "—" : String(summary.accounting)}
+          hint="Status trimis contabilitate"
+        />
       </div>
 
       {error ? (
-        <p
+        <div
           className={cn(
-            "rounded-xl border px-4 py-2 text-sm",
-            error.startsWith("Trimis la contabilitate")
-              ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-300"
-              : "border-red-500/30 bg-red-500/10 text-red-300",
+            "flex items-start gap-3 rounded-2xl border px-4 py-3 text-sm",
+            isSuccessBanner
+              ? "border-emerald-500/25 bg-emerald-500/10 text-emerald-200"
+              : "border-red-500/25 bg-red-500/10 text-red-200",
           )}
         >
-          {error}
-        </p>
+          {isSuccessBanner ? (
+            <CheckCircle2 className="mt-0.5 size-4 shrink-0" />
+          ) : (
+            <MailWarning className="mt-0.5 size-4 shrink-0" />
+          )}
+          <p className="leading-relaxed">{error}</p>
+        </div>
       ) : null}
 
+      {/* Generate panel */}
       {showGenerate ? (
-        <div className="space-y-4 rounded-2xl border border-white/[0.08] bg-white/[0.03] p-5">
-          <div className="flex flex-wrap items-end justify-between gap-3">
+        <section className="space-y-5 overflow-hidden rounded-3xl border border-white/[0.08] bg-white/[0.025]">
+          <div className="flex flex-wrap items-end justify-between gap-4 border-b border-white/[0.06] px-5 py-4 md:px-6">
             <div>
               <p className="text-sm font-medium text-white">
-                Generare manuală — {periodLabel(periodKey)}
+                Generare manuală
               </p>
               <p className="mt-1 text-xs text-zinc-500">
-                Doar firmele active cu sumă lunară setată.
-              </p>
-            </div>
-            <div className="rounded-xl border border-white/10 bg-zinc-950/50 px-4 py-2 text-right text-xs">
-              <p className="text-zinc-500">Următorul număr</p>
-              <p className="mt-0.5 font-medium text-[color:var(--brand)]">
-                {nextNumber?.formatted ?? "—"}
-              </p>
-              <p className="mt-0.5 text-zinc-600">
-                Data {new Date().toLocaleDateString("ro-RO")}
+                {periodLabel(periodKey)} · doar firme active cu sumă lunară
               </p>
             </div>
           </div>
 
-          <div className="overflow-x-auto rounded-xl border border-white/[0.06]">
+          <div className="overflow-x-auto px-2 pb-4 md:px-3">
             <table className="w-full text-sm">
-              <thead className="border-b border-white/10 text-left text-zinc-500">
-                <tr>
-                  <th className="p-3 font-medium">Firmă</th>
-                  <th className="p-3 font-medium">Sumă / TVA</th>
-                  <th className="p-3 font-medium">Detalii factură</th>
-                  <th className="p-3 font-medium">Status</th>
-                  <th className="p-3" />
+              <thead>
+                <tr className="text-left text-[11px] uppercase tracking-[0.12em] text-zinc-500">
+                  <th className="px-4 py-3 font-medium">Firmă</th>
+                  <th className="px-4 py-3 font-medium">Sumă / TVA</th>
+                  <th className="px-4 py-3 font-medium">Detalii</th>
+                  <th className="px-4 py-3 font-medium">Status</th>
+                  <th className="px-4 py-3" />
                 </tr>
               </thead>
               <tbody>
                 {(manualList ?? []).map((row) => (
-                  <tr key={row.companyId} className="border-b border-white/5">
-                    <td className="p-3">
+                  <tr
+                    key={row.companyId}
+                    className="border-t border-white/[0.05] transition-colors hover:bg-white/[0.025]"
+                  >
+                    <td className="px-4 py-4">
                       <p className="font-medium text-white">{row.name}</p>
-                      <p className="text-xs text-zinc-500">{row.email}</p>
+                      <p className="mt-0.5 text-xs text-zinc-500">
+                        {row.email}
+                      </p>
                     </td>
-                    <td className="p-3 text-xs text-zinc-400">
+                    <td className="px-4 py-4 text-xs text-zinc-400">
                       <p>
                         Net {formatRon(row.net)} · TVA {formatRon(row.vat)}
                       </p>
-                      <p className="mt-0.5 font-medium text-white">
+                      <p className="mt-1 font-medium text-white tabular-nums">
                         Total {formatRon(row.gross)}
                       </p>
-                      <p className="mt-0.5 text-zinc-600">
+                      <p className="mt-1 text-zinc-600">
                         {row.vatMode === "included"
                           ? "TVA inclus"
                           : "fără TVA (+21%)"}
                       </p>
                     </td>
-                    <td className="max-w-[240px] p-3 text-xs text-zinc-400">
+                    <td className="max-w-[240px] px-4 py-4 text-xs text-zinc-400">
                       <p>
                         Nr.{" "}
                         {row.alreadyGenerated
                           ? "deja alocat"
                           : (nextNumber?.formatted ?? "—")}
                       </p>
-                      <p className="mt-0.5">
-                        Perioadă: {periodLabel(periodKey)}
-                      </p>
-                      <p className="mt-0.5 line-clamp-2">
+                      <p className="mt-1">{periodLabel(periodKey)}</p>
+                      <p className="mt-1 line-clamp-2 text-zinc-500">
                         {row.invoiceDescription ||
                           "Prestare servicii conform contract"}
                       </p>
                     </td>
-                    <td className="p-3">
-                      <span
-                        className={cn(
-                          "rounded-full px-2 py-0.5 text-xs",
-                          row.alreadyGenerated
-                            ? "bg-emerald-500/15 text-emerald-400"
-                            : "bg-zinc-500/15 text-zinc-400",
-                        )}
+                    <td className="px-4 py-4">
+                      <StatusPill
+                        tone={row.alreadyGenerated ? "ok" : "muted"}
                       >
-                        {row.alreadyGenerated
-                          ? "Deja generată"
-                          : "Pregătită"}
-                      </span>
+                        {row.alreadyGenerated ? "Deja generată" : "Pregătită"}
+                      </StatusPill>
                     </td>
-                    <td className="p-3 text-right">
+                    <td className="px-4 py-4 text-right">
                       <Button
                         size="sm"
                         disabled={
@@ -378,7 +533,7 @@ export default function FacturiPage() {
                   <tr>
                     <td
                       colSpan={5}
-                      className="p-8 text-center text-sm text-zinc-500"
+                      className="px-4 py-12 text-center text-sm text-zinc-500"
                     >
                       Nicio firmă activă cu sumă lunară. Adaugă suma în Firme.
                     </td>
@@ -387,104 +542,143 @@ export default function FacturiPage() {
               </tbody>
             </table>
           </div>
-        </div>
+        </section>
       ) : null}
 
-      <div className="space-y-3">
+      {/* List */}
+      <section className="space-y-3">
         {selected.size > 0 ? (
-          <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-white/[0.08] bg-white/[0.03] px-4 py-3">
-            <p className="text-sm text-zinc-300">
-              {selected.size} selectat{selected.size === 1 ? "ă" : "e"}
-            </p>
+          <div className="sticky top-3 z-20 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-[color:var(--brand)]/25 bg-zinc-950/90 px-4 py-3 shadow-[0_12px_40px_rgba(0,0,0,0.45)] backdrop-blur-md">
+            <div>
+              <p className="text-sm font-medium text-white">
+                {selected.size} selectat{selected.size === 1 ? "ă" : "e"}
+              </p>
+              <p className="text-[11px] text-zinc-500">
+                Descarcă sau trimite tot lotul la contabilitate
+              </p>
+            </div>
             <div className="flex flex-wrap gap-2">
               <Button
                 type="button"
                 size="sm"
-                variant="outline"
+                variant="ghost"
                 onClick={() => setSelected(new Set())}
               >
-                Anulează selecția
+                Anulează
               </Button>
               <Button
                 type="button"
                 size="sm"
+                variant="outline"
+                className="gap-1.5"
                 disabled={downloading || sendingAccountingBulk}
                 onClick={() => void onDownloadSelected()}
               >
-                {downloading
-                  ? "Se descarcă…"
-                  : `Descarcă PDF (${selected.size})`}
+                {downloading ? (
+                  <Loader2 className="size-3.5 animate-spin" />
+                ) : (
+                  <Download className="size-3.5" />
+                )}
+                Descarcă ({selected.size})
               </Button>
               <Button
                 type="button"
                 size="sm"
+                className="gap-1.5"
                 disabled={downloading || sendingAccountingBulk}
-                onClick={() =>
-                  void onSendAccounting(Array.from(selected))
-                }
+                onClick={() => void onSendAccounting(Array.from(selected))}
               >
-                {sendingAccountingBulk
-                  ? "Se trimite la contabilitate…"
-                  : `Trimite la contabilitate (${selected.size})`}
+                {sendingAccountingBulk ? (
+                  <Loader2 className="size-3.5 animate-spin" />
+                ) : (
+                  <Calculator className="size-3.5" />
+                )}
+                Contabilitate ({selected.size})
               </Button>
             </div>
           </div>
         ) : null}
 
-        <div className="overflow-x-auto rounded-2xl border border-white/[0.08]">
-          <table className="w-full text-sm">
-            <thead className="border-b border-white/10 text-left text-zinc-500">
-              <tr>
-                <th className="w-10 p-3">
-                  <input
-                    type="checkbox"
-                    aria-label="Selectează toate facturile cu PDF"
-                    checked={allSelectableSelected}
-                    disabled={selectableIds.length === 0}
-                    onChange={toggleAll}
-                    className="size-4 rounded border-white/20 bg-zinc-950 accent-[color:var(--brand)]"
-                  />
-                </th>
-                <th className="p-3 font-medium">Factură</th>
-                <th className="p-3 font-medium">Firmă</th>
-                <th className="p-3 font-medium">Perioadă</th>
-                <th className="p-3 font-medium">Net</th>
-                <th className="p-3 font-medium">TVA</th>
-                <th className="p-3 font-medium">Total</th>
-                <th className="p-3 font-medium">Email</th>
-                <th className="p-3" />
-              </tr>
-            </thead>
-            <tbody>
-              {(invoices ?? []).map((inv) => (
-                <InvoiceRow
-                  key={inv._id}
-                  inv={inv}
-                  sessionToken={token}
-                  selected={selected.has(inv._id)}
-                  onToggle={() => toggleOne(inv._id)}
-                  sending={sendingId === inv._id}
-                  sendingAccounting={accountingId === inv._id}
-                  regenerating={regeneratingId === inv._id}
-                  onSend={() => onSend(inv._id)}
-                  onSendAccounting={() => onSendAccounting([inv._id])}
-                  onRegeneratePdf={() => onRegeneratePdf(inv._id)}
-                />
-              ))}
-              {(invoices ?? []).length === 0 ? (
-                <tr>
-                  <td
-                    colSpan={9}
-                    className="p-8 text-center text-sm text-zinc-500"
-                  >
-                    Încă nu există facturi generate.
-                  </td>
+        <div className="overflow-hidden rounded-3xl border border-white/[0.08] bg-white/[0.02]">
+          <div className="flex items-center justify-between gap-3 border-b border-white/[0.06] px-5 py-4">
+            <div>
+              <p className="text-sm font-medium text-white">Registru facturi</p>
+              <p className="mt-0.5 text-xs text-zinc-500">
+                {loading
+                  ? "Se încarcă…"
+                  : `${invoices?.length ?? 0} înregistrări`}
+              </p>
+            </div>
+          </div>
+
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[960px] text-sm">
+              <thead>
+                <tr className="border-b border-white/[0.06] text-left text-[11px] uppercase tracking-[0.12em] text-zinc-500">
+                  <th className="w-12 px-4 py-3">
+                    <input
+                      type="checkbox"
+                      aria-label="Selectează toate facturile cu PDF"
+                      checked={allSelectableSelected}
+                      disabled={selectableIds.length === 0}
+                      onChange={toggleAll}
+                      className="size-4 rounded border-white/20 bg-zinc-950 accent-[color:var(--brand)]"
+                    />
+                  </th>
+                  <th className="px-3 py-3 font-medium">Factură</th>
+                  <th className="px-3 py-3 font-medium">Firmă</th>
+                  <th className="px-3 py-3 font-medium">Perioadă</th>
+                  <th className="px-3 py-3 font-medium text-right">Net</th>
+                  <th className="px-3 py-3 font-medium text-right">TVA</th>
+                  <th className="px-3 py-3 font-medium text-right">Total</th>
+                  <th className="px-3 py-3 font-medium">Status</th>
+                  <th className="px-4 py-3 font-medium text-right">Acțiuni</th>
                 </tr>
-              ) : null}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {(invoices ?? []).map((inv) => (
+                  <InvoiceRow
+                    key={inv._id}
+                    inv={inv}
+                    sessionToken={token}
+                    selected={selected.has(inv._id)}
+                    onToggle={() => toggleOne(inv._id)}
+                    sending={sendingId === inv._id}
+                    sendingAccounting={accountingId === inv._id}
+                    regenerating={regeneratingId === inv._id}
+                    onSend={() => onSend(inv._id)}
+                    onSendAccounting={() => onSendAccounting([inv._id])}
+                    onRegeneratePdf={() => onRegeneratePdf(inv._id)}
+                  />
+                ))}
+                {!loading && (invoices ?? []).length === 0 ? (
+                  <tr>
+                    <td
+                      colSpan={9}
+                      className="px-4 py-16 text-center text-sm text-zinc-500"
+                    >
+                      Încă nu există facturi generate.
+                    </td>
+                  </tr>
+                ) : null}
+                {loading ? (
+                  <tr>
+                    <td
+                      colSpan={9}
+                      className="px-4 py-16 text-center text-sm text-zinc-500"
+                    >
+                      <span className="inline-flex items-center gap-2">
+                        <Loader2 className="size-4 animate-spin" />
+                        Se încarcă facturile…
+                      </span>
+                    </td>
+                  </tr>
+                ) : null}
+              </tbody>
+            </table>
+          </div>
         </div>
-      </div>
+      </section>
     </div>
   );
 }
@@ -521,8 +715,13 @@ function InvoiceRow({
   const accountingFailed = inv.accountingEmailStatus === "failed";
 
   return (
-    <tr className="border-b border-white/5">
-      <td className="p-3">
+    <tr
+      className={cn(
+        "border-b border-white/[0.04] transition-colors",
+        selected ? "bg-[color:var(--brand)]/[0.06]" : "hover:bg-white/[0.025]",
+      )}
+    >
+      <td className="px-4 py-4">
         <input
           type="checkbox"
           aria-label={`Selectează factura ${inv.number}`}
@@ -533,105 +732,145 @@ function InvoiceRow({
           className="size-4 rounded border-white/20 bg-zinc-950 accent-[color:var(--brand)] disabled:opacity-30"
         />
       </td>
-      <td className="p-3 font-medium text-white">{inv.number}</td>
-      <td className="p-3 text-zinc-300">
-        <p>{inv.company?.name ?? "—"}</p>
-        {inv.company?.email ? (
-          <p className="text-xs text-zinc-600">{inv.company.email}</p>
+      <td className="px-3 py-4">
+        <p className="font-medium tracking-tight text-white tabular-nums">
+          {inv.number}
+        </p>
+        {inv.series ? (
+          <p className="mt-0.5 text-[11px] text-zinc-600">Serie {inv.series}</p>
         ) : null}
       </td>
-      <td className="p-3 text-zinc-400">{inv.periodLabel}</td>
-      <td className="p-3 text-zinc-400">{formatRon(inv.netAmount)}</td>
-      <td className="p-3 text-zinc-400">{formatRon(inv.vatAmount)}</td>
-      <td className="p-3 font-medium text-white">
+      <td className="px-3 py-4">
+        <p className="font-medium text-zinc-100">{inv.company?.name ?? "—"}</p>
+        {inv.company?.email ? (
+          <p className="mt-0.5 text-xs text-zinc-500">{inv.company.email}</p>
+        ) : null}
+      </td>
+      <td className="px-3 py-4 text-zinc-400">{inv.periodLabel}</td>
+      <td className="px-3 py-4 text-right text-zinc-400 tabular-nums">
+        {formatRon(inv.netAmount)}
+      </td>
+      <td className="px-3 py-4 text-right text-zinc-400 tabular-nums">
+        {formatRon(inv.vatAmount)}
+      </td>
+      <td className="px-3 py-4 text-right font-medium text-white tabular-nums">
         {formatRon(inv.grossAmount)}
       </td>
-      <td className="p-3">
-        <div className="flex flex-col gap-1">
-          <span
-            className={cn(
-              "w-fit rounded-full px-2 py-0.5 text-xs",
+      <td className="px-3 py-4">
+        <div className="flex flex-col gap-1.5">
+          <StatusPill
+            tone={
               inv.emailStatus === "sent"
-                ? "bg-emerald-500/15 text-emerald-400"
+                ? "ok"
                 : inv.emailStatus === "failed"
-                  ? "bg-red-500/15 text-red-400"
-                  : "bg-amber-500/15 text-amber-400",
-            )}
+                  ? "danger"
+                  : "warn"
+            }
             title={inv.emailError}
           >
             {emailLabel(inv.emailStatus)}
-          </span>
+          </StatusPill>
           {accountingSent ? (
-            <span className="w-fit rounded-full bg-sky-500/15 px-2 py-0.5 text-xs text-sky-300">
-              Trimis la contabilitate
-            </span>
+            <StatusPill tone="info">Contabilitate</StatusPill>
           ) : accountingFailed ? (
-            <span
-              className="w-fit rounded-full bg-red-500/15 px-2 py-0.5 text-xs text-red-400"
-              title={inv.accountingEmailError}
-            >
-              Contabilitate eșuat
-            </span>
+            <StatusPill tone="danger" title={inv.accountingEmailError}>
+              Contab. eșuat
+            </StatusPill>
           ) : null}
         </div>
         {inv.emailStatus === "failed" && inv.emailError ? (
-          <p className="mt-1 max-w-[180px] text-[11px] leading-snug text-red-400/80">
+          <p className="mt-1.5 max-w-[180px] text-[11px] leading-snug text-red-400/80">
             {inv.emailError}
           </p>
         ) : null}
       </td>
-      <td className="space-x-2 p-3 text-right whitespace-nowrap">
-        {pdfUrl ? (
-          <>
-            <a
-              href={pdfUrl}
-              target="_blank"
-              rel="noreferrer"
-              className={buttonVariants({ variant: "outline", size: "sm" })}
-            >
-              Vezi factura
-            </a>
+      <td className="px-4 py-4">
+        <div className="flex flex-wrap items-center justify-end gap-1.5">
+          {pdfUrl ? (
+            <>
+              <a
+                href={pdfUrl}
+                target="_blank"
+                rel="noreferrer"
+                title="Vezi factura"
+                className={cn(
+                  buttonVariants({ variant: "outline", size: "sm" }),
+                  "gap-1.5",
+                )}
+              >
+                <Eye className="size-3.5" />
+                Vezi
+              </a>
+              <Button
+                size="sm"
+                variant="outline"
+                className="gap-1.5"
+                title="Descarcă PDF"
+                onClick={() =>
+                  void downloadPdfFile(pdfUrl, `${inv.number}.pdf`)
+                }
+              >
+                <Download className="size-3.5" />
+                PDF
+              </Button>
+            </>
+          ) : pdfUrl === null ? (
             <Button
               size="sm"
               variant="outline"
-              onClick={() => void downloadPdfFile(pdfUrl, `${inv.number}.pdf`)}
+              className="gap-1.5"
+              disabled={regenerating}
+              onClick={onRegeneratePdf}
             >
-              Descarcă
+              {regenerating ? (
+                <Loader2 className="size-3.5 animate-spin" />
+              ) : (
+                <RefreshCw className="size-3.5" />
+              )}
+              Regenerează
             </Button>
-          </>
-        ) : pdfUrl === null ? (
+          ) : (
+            <Button size="sm" variant="outline" disabled>
+              …
+            </Button>
+          )}
           <Button
             size="sm"
             variant="outline"
-            disabled={regenerating}
-            onClick={onRegeneratePdf}
+            className="gap-1.5"
+            disabled={sending}
+            onClick={onSend}
+            title={
+              inv.emailStatus === "sent" ? "Retrimite email" : "Trimite email"
+            }
           >
-            {regenerating ? "Se regenerează…" : "Regenerează PDF"}
+            {sending ? (
+              <Loader2 className="size-3.5 animate-spin" />
+            ) : (
+              <Mail className="size-3.5" />
+            )}
+            {inv.emailStatus === "sent" ? "Retrimite" : "Email"}
           </Button>
-        ) : (
-          <Button size="sm" variant="outline" disabled>
-            …
+          <Button
+            size="sm"
+            variant="outline"
+            className="gap-1.5"
+            disabled={!hasPdf || sendingAccounting}
+            onClick={onSendAccounting}
+            title={
+              accountingSent
+                ? "Retrimite contabilitate"
+                : "Trimite contabilitate"
+            }
+          >
+            {sendingAccounting ? (
+              <Loader2 className="size-3.5 animate-spin" />
+            ) : (
+              <Calculator className="size-3.5" />
+            )}
+            Contab.
           </Button>
-        )}
-        <Button size="sm" variant="outline" disabled={sending} onClick={onSend}>
-          {sending
-            ? "Se trimite…"
-            : inv.emailStatus === "sent"
-              ? "Retrimite email"
-              : "Trimite pe email"}
-        </Button>
-        <Button
-          size="sm"
-          variant="outline"
-          disabled={!hasPdf || sendingAccounting}
-          onClick={onSendAccounting}
-        >
-          {sendingAccounting
-            ? "Se trimite…"
-            : accountingSent
-              ? "Retrimite contabilitate"
-              : "Trimite contabilitate"}
-        </Button>
+        </div>
       </td>
     </tr>
   );
