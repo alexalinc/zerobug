@@ -353,6 +353,11 @@ function InvoiceRow({
         >
           {emailLabel(inv.emailStatus)}
         </span>
+        {inv.emailStatus === "failed" && inv.emailError ? (
+          <p className="mt-1 max-w-[180px] text-[11px] leading-snug text-red-400/80">
+            {inv.emailError}
+          </p>
+        ) : null}
       </td>
       <td className="space-x-2 p-3 text-right whitespace-nowrap">
         {pdfUrl ? (

@@ -343,7 +343,7 @@ export const sendEmailOnly = internalAction({
           ? [accountingEmail]
           : undefined;
 
-      await resend.emails.send({
+      const { error } = await resend.emails.send({
         from,
         to: invoice.company.email,
         bcc,
@@ -363,6 +363,15 @@ export const sendEmailOnly = internalAction({
             ]
           : undefined,
       });
+
+      if (error) {
+        await ctx.runMutation(internal.invoices.markEmail, {
+          invoiceId: args.invoiceId,
+          emailStatus: "failed",
+          emailError: error.message || "Resend a returnat o eroare",
+        });
+        return null;
+      }
 
       await ctx.runMutation(internal.invoices.markEmail, {
         invoiceId: args.invoiceId,
