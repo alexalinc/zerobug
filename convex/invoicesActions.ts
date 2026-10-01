@@ -308,7 +308,7 @@ export const sendEmailOnly = internalAction({
 
     const apiKey = process.env.RESEND_API_KEY;
     const from =
-      process.env.RESEND_FROM_EMAIL || "ZeroBug <contact@zerobug.ro>";
+      process.env.RESEND_FROM_EMAIL || "ZeroBug <contact@mercana.ro>";
 
     if (!apiKey) {
       await ctx.runMutation(internal.invoices.markEmail, {
