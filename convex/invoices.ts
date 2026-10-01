@@ -357,14 +357,21 @@ export const sendToAccounting = action({
     sent: v.number(),
     to: v.string(),
   }),
-  handler: async (ctx, args) => {
+  handler: async (
+    ctx,
+    args,
+  ): Promise<{ sent: number; to: string }> => {
     await requireAdminSession(args.sessionToken);
     if (args.invoiceIds.length === 0) {
       throw new Error("Selectează cel puțin o factură");
     }
-    return await ctx.runAction(internal.invoicesActions.sendToAccounting, {
-      invoiceIds: args.invoiceIds.slice(0, 50),
-    });
+    const result: { sent: number; to: string } = await ctx.runAction(
+      internal.invoicesActions.sendAccountingEmail,
+      {
+        invoiceIds: args.invoiceIds.slice(0, 50),
+      },
+    );
+    return result;
   },
 });
 

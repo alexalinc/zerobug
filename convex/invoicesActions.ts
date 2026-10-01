@@ -384,10 +384,13 @@ export const sendEmailOnly = internalAction({
 });
 
 /** One email to accounting with all selected invoice PDFs attached. */
-export const sendToAccounting = internalAction({
+export const sendAccountingEmail = internalAction({
   args: { invoiceIds: v.array(v.id("invoices")) },
   returns: v.object({ sent: v.number(), to: v.string() }),
-  handler: async (ctx, args) => {
+  handler: async (
+    ctx,
+    args,
+  ): Promise<{ sent: number; to: string }> => {
     const from = "ZeroBug <contact@mercana.ro>";
     const apiKey = process.env.RESEND_API_KEY;
     const invoices: Array<{
@@ -405,8 +408,11 @@ export const sendToAccounting = internalAction({
       throw new Error("Nicio factură găsită");
     }
 
-    const issuer = await ctx.runQuery(internal.settings.getIssuerInternal, {});
-    const to =
+    const issuer: { accountingEmail?: string } | null = await ctx.runQuery(
+      internal.settings.getIssuerInternal,
+      {},
+    );
+    const to: string =
       (typeof issuer?.accountingEmail === "string" &&
         issuer.accountingEmail.trim()) ||
       "exactexpert@yahoo.com";
