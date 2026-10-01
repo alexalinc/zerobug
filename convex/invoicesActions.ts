@@ -306,9 +306,9 @@ export const sendEmailOnly = internalAction({
     });
     if (!invoice?.company) throw new Error("Invoice not found");
 
+    // Hardcoded verified domain — do not fall back to zerobug.ro
+    const from = "ZeroBug <contact@mercana.ro>";
     const apiKey = process.env.RESEND_API_KEY;
-    const from =
-      process.env.RESEND_FROM_EMAIL || "ZeroBug <contact@mercana.ro>";
 
     if (!apiKey) {
       await ctx.runMutation(internal.invoices.markEmail, {
@@ -343,7 +343,13 @@ export const sendEmailOnly = internalAction({
           ? [accountingEmail]
           : undefined;
 
-      const { error } = await resend.emails.send({
+      console.log("Sending invoice email", {
+        invoiceId: args.invoiceId,
+        from,
+        to: invoice.company.email,
+      });
+
+      const { data, error } = await resend.emails.send({
         from,
         to: invoice.company.email,
         bcc,
@@ -368,11 +374,12 @@ export const sendEmailOnly = internalAction({
         await ctx.runMutation(internal.invoices.markEmail, {
           invoiceId: args.invoiceId,
           emailStatus: "failed",
-          emailError: error.message || "Resend a returnat o eroare",
+          emailError: `${error.message || "Resend error"} (from: ${from})`,
         });
         return null;
       }
 
+      console.log("Invoice email sent", { id: data?.id, from });
       await ctx.runMutation(internal.invoices.markEmail, {
         invoiceId: args.invoiceId,
         emailStatus: "sent",
@@ -381,7 +388,7 @@ export const sendEmailOnly = internalAction({
       await ctx.runMutation(internal.invoices.markEmail, {
         invoiceId: args.invoiceId,
         emailStatus: "failed",
-        emailError: error instanceof Error ? error.message : "Email failed",
+        emailError: `${error instanceof Error ? error.message : "Email failed"} (from: ${from})`,
       });
     }
     return null;

@@ -243,7 +243,8 @@ export const markEmail = internalMutation({
   handler: async (ctx, args) => {
     await ctx.db.patch(args.invoiceId, {
       emailStatus: args.emailStatus,
-      emailError: args.emailError,
+      emailError:
+        args.emailStatus === "sent" ? undefined : args.emailError,
       status: args.emailStatus === "sent" ? "sent" : "issued",
     });
     return null;

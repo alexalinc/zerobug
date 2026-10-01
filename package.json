@@ -5,11 +5,11 @@
   "scripts": {
     "dev": "npm-run-all --parallel dev:frontend dev:backend",
     "dev:frontend": "next dev",
-    "dev:backend": "CONVEX_AGENT_MODE=anonymous sh -c \"printf 'y\\n' | convex dev\"",
+    "dev:backend": "convex dev",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "seed": "CONVEX_AGENT_MODE=anonymous convex run settings:seedDefaultsInternal"
+    "seed": "convex run settings:seedDefaultsInternal"
   },
   "dependencies": {
     "@auth/core": "^0.41.3",
