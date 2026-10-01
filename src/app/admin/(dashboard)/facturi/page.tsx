@@ -7,7 +7,7 @@ import {
 
 import { useAction, useQuery } from "convex/react";
 import { api } from "@convex/_generated/api";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import type { Id } from "@convex/_generated/dataModel";
 import { formatRon } from "@/lib/vat";
 import { useMemo, useState } from "react";
@@ -336,11 +336,15 @@ function InvoiceRow({
             href={pdfUrl}
             target="_blank"
             rel="noreferrer"
-            className="text-sm text-[color:var(--brand)] underline"
+            className={buttonVariants({ variant: "outline", size: "sm" })}
           >
-            PDF
+            Vezi factura
           </a>
-        ) : null}
+        ) : (
+          <Button size="sm" variant="outline" disabled>
+            Fără PDF
+          </Button>
+        )}
         <Button size="sm" variant="outline" disabled={sending} onClick={onSend}>
           {sending
             ? "Se trimite…"

@@ -85,14 +85,27 @@ export const generateForSubscription = internalAction({
     const now = new Date();
     const key = args.periodKey ?? periodKeyFromDate(now);
 
-    const existing: { _id: Id<"invoices"> } | null = await ctx.runQuery(
-      internal.invoices.findByCompanyPeriod,
-      {
-        companyId: args.companyId,
-        periodKey: key,
-      },
-    );
+    const existing: {
+      _id: Id<"invoices">;
+      pdfStorageId?: Id<"_storage">;
+    } | null = await ctx.runQuery(internal.invoices.findByCompanyPeriod, {
+      companyId: args.companyId,
+      periodKey: key,
+    });
     if (existing) {
+      // Retry PDF/email if the previous run created the row but failed mid-send
+      if (!existing.pdfStorageId) {
+        try {
+          await ctx.runAction(internal.invoicesActions.generateAndSend, {
+            invoiceId: existing._id,
+          });
+        } catch (error) {
+          console.error(
+            `Retry generateAndSend failed for ${existing._id}:`,
+            error,
+          );
+        }
+      }
       return existing._id;
     }
 
@@ -220,23 +233,30 @@ export const runMonthlyBilling = internalAction({
     const billed = new Set<string>();
     for (const company of companies) {
       if (!company.monthlyAmount || company.monthlyAmount <= 0) continue;
-      const id = await ctx.runAction(
-        internal.invoicesBilling.generateForSubscription,
-        {
-          companyId: company._id,
-          planName: "Mentenanță",
-          priceNet: company.monthlyAmount,
-          periodKey: key,
-          monthlyAmount: company.monthlyAmount,
-          vatMode: company.vatMode ?? "excluded",
-          invoiceDescription:
-            company.invoiceDescription?.trim() ||
-            "Prestare servicii conform contract",
-        },
-      );
-      if (id) {
-        generated += 1;
-        billed.add(company._id);
+      try {
+        const id = await ctx.runAction(
+          internal.invoicesBilling.generateForSubscription,
+          {
+            companyId: company._id,
+            planName: "Mentenanță",
+            priceNet: company.monthlyAmount,
+            periodKey: key,
+            monthlyAmount: company.monthlyAmount,
+            vatMode: company.vatMode ?? "excluded",
+            invoiceDescription:
+              company.invoiceDescription?.trim() ||
+              "Prestare servicii conform contract",
+          },
+        );
+        if (id) {
+          generated += 1;
+          billed.add(company._id);
+        }
+      } catch (error) {
+        console.error(
+          `Monthly billing failed for company ${company._id}:`,
+          error,
+        );
       }
     }
 
@@ -253,21 +273,28 @@ export const runMonthlyBilling = internalAction({
       ) {
         continue;
       }
-      const amounts = resolveBillingAmounts(item);
-      const id = await ctx.runAction(
-        internal.invoicesBilling.generateForSubscription,
-        {
-          companyId: item.company._id,
-          subscriptionId: item.subscription._id,
-          planName: item.plan.name,
-          priceNet: amounts.net,
-          periodKey: key,
-          invoiceDescription:
-            item.company.invoiceDescription?.trim() ||
-            `Prestare servicii mentenanță ZeroBug — ${item.plan.name}`,
-        },
-      );
-      if (id) generated += 1;
+      try {
+        const amounts = resolveBillingAmounts(item);
+        const id = await ctx.runAction(
+          internal.invoicesBilling.generateForSubscription,
+          {
+            companyId: item.company._id,
+            subscriptionId: item.subscription._id,
+            planName: item.plan.name,
+            priceNet: amounts.net,
+            periodKey: key,
+            invoiceDescription:
+              item.company.invoiceDescription?.trim() ||
+              `Prestare servicii mentenanță ZeroBug — ${item.plan.name}`,
+          },
+        );
+        if (id) generated += 1;
+      } catch (error) {
+        console.error(
+          `Monthly billing failed for subscription ${item.subscription._id}:`,
+          error,
+        );
+      }
     }
     return { generated };
   },
