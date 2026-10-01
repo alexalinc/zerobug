@@ -47,6 +47,38 @@ export const getPdfUrl = query({
   },
 });
 
+/** Resolve PDF URLs for bulk download (max 50). */
+export const getPdfUrls = query({
+  args: {
+    sessionToken: v.string(),
+    ids: v.array(v.id("invoices")),
+  },
+  returns: v.array(
+    v.object({
+      id: v.id("invoices"),
+      number: v.string(),
+      url: v.union(v.string(), v.null()),
+    }),
+  ),
+  handler: async (ctx, args) => {
+    await requireAdminSession(args.sessionToken);
+    const result: Array<{
+      id: (typeof args.ids)[number];
+      number: string;
+      url: string | null;
+    }> = [];
+    for (const id of args.ids.slice(0, 50)) {
+      const inv = await ctx.db.get(id);
+      if (!inv) continue;
+      const url = inv.pdfStorageId
+        ? await ctx.storage.getUrl(inv.pdfStorageId)
+        : null;
+      result.push({ id, number: inv.number, url });
+    }
+    return result;
+  },
+});
+
 export const allocateNumber = internalMutation({
   args: { year: v.number(), series: v.string() },
   returns: v.string(),

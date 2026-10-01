@@ -5,7 +5,7 @@ import {
   withAdminToken,
 } from "@/components/admin-session-provider";
 
-import { useAction, useQuery } from "convex/react";
+import { useAction, useConvex, useQuery } from "convex/react";
 import { api } from "@convex/_generated/api";
 import { Button, buttonVariants } from "@/components/ui/button";
 import type { Id } from "@convex/_generated/dataModel";
@@ -45,11 +45,46 @@ function emailLabel(status: string) {
   return "Netrimis";
 }
 
+type InvoiceListItem = {
+  _id: Id<"invoices">;
+  number: string;
+  series?: string;
+  periodLabel: string;
+  netAmount: number;
+  vatAmount: number;
+  grossAmount: number;
+  emailStatus: string;
+  emailError?: string;
+  pdfStorageId?: Id<"_storage">;
+  company?: { name?: string; email?: string } | null;
+};
+
+async function downloadPdfFile(url: string, filename: string) {
+  try {
+    const res = await fetch(url);
+    if (!res.ok) throw new Error("fetch failed");
+    const blob = await res.blob();
+    const objectUrl = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = objectUrl;
+    a.download = filename.endsWith(".pdf") ? filename : `${filename}.pdf`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(objectUrl);
+  } catch {
+    window.open(url, "_blank", "noopener,noreferrer");
+  }
+}
+
 export default function FacturiPage() {
   const token = useAdminSessionToken();
+  const convex = useConvex();
   const periodKey = useMemo(() => currentPeriodKey(), []);
   const year = useMemo(() => Number(periodKey.split("-")[0]), [periodKey]);
-  const invoices = useQuery(api.invoices.list, withAdminToken(token));
+  const invoices = useQuery(api.invoices.list, withAdminToken(token)) as
+    | InvoiceListItem[]
+    | undefined;
   const nextNumber = useQuery(
     api.invoices.peekNextNumber,
     withAdminToken(token, { year }),
@@ -69,7 +104,38 @@ export default function FacturiPage() {
   const [sendingId, setSendingId] = useState<Id<"invoices"> | null>(null);
   const [regeneratingId, setRegeneratingId] =
     useState<Id<"invoices"> | null>(null);
+  const [selected, setSelected] = useState<Set<Id<"invoices">>>(new Set());
+  const [downloading, setDownloading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const selectableIds = useMemo(
+    () =>
+      (invoices ?? [])
+        .filter((inv) => Boolean(inv.pdfStorageId))
+        .map((inv) => inv._id),
+    [invoices],
+  );
+
+  const allSelectableSelected =
+    selectableIds.length > 0 &&
+    selectableIds.every((id) => selected.has(id));
+
+  function toggleOne(id: Id<"invoices">) {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  function toggleAll() {
+    if (allSelectableSelected) {
+      setSelected(new Set());
+      return;
+    }
+    setSelected(new Set(selectableIds));
+  }
 
   async function onGenerate(companyId: Id<"companies">) {
     if (!token) return;
@@ -109,6 +175,40 @@ export default function FacturiPage() {
       );
     } finally {
       setRegeneratingId(null);
+    }
+  }
+
+  async function onDownloadSelected() {
+    if (!token || selected.size === 0) return;
+    setDownloading(true);
+    setError(null);
+    try {
+      const rows = await convex.query(api.invoices.getPdfUrls, {
+        sessionToken: token,
+        ids: Array.from(selected),
+      });
+      const withPdf = rows.filter((r) => r.url);
+      if (withPdf.length === 0) {
+        setError("Nicio factură selectată nu are PDF.");
+        return;
+      }
+      for (const row of withPdf) {
+        if (!row.url) continue;
+        await downloadPdfFile(row.url, `${row.number}.pdf`);
+        await new Promise((r) => setTimeout(r, 250));
+      }
+      const skipped = rows.length - withPdf.length;
+      if (skipped > 0) {
+        setError(
+          `${withPdf.length} descărcate; ${skipped} fără PDF au fost sărite.`,
+        );
+      }
+    } catch (e) {
+      setError(
+        e instanceof Error ? e.message : "Descărcarea în bulk a eșuat",
+      );
+    } finally {
+      setDownloading(false);
     }
   }
 
@@ -250,44 +350,86 @@ export default function FacturiPage() {
         </div>
       ) : null}
 
-      <div className="overflow-x-auto rounded-2xl border border-white/[0.08]">
-        <table className="w-full text-sm">
-          <thead className="border-b border-white/10 text-left text-zinc-500">
-            <tr>
-              <th className="p-3 font-medium">Factură</th>
-              <th className="p-3 font-medium">Firmă</th>
-              <th className="p-3 font-medium">Perioadă</th>
-              <th className="p-3 font-medium">Net</th>
-              <th className="p-3 font-medium">TVA</th>
-              <th className="p-3 font-medium">Total</th>
-              <th className="p-3 font-medium">Email</th>
-              <th className="p-3" />
-            </tr>
-          </thead>
-          <tbody>
-            {(invoices ?? []).map((inv) => (
-              <InvoiceRow
-                key={inv._id}
-                inv={inv}
-                sessionToken={token}
-                sending={sendingId === inv._id}
-                regenerating={regeneratingId === inv._id}
-                onSend={() => onSend(inv._id)}
-                onRegeneratePdf={() => onRegeneratePdf(inv._id)}
-              />
-            ))}
-            {(invoices ?? []).length === 0 ? (
+      <div className="space-y-3">
+        {selected.size > 0 ? (
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-white/[0.08] bg-white/[0.03] px-4 py-3">
+            <p className="text-sm text-zinc-300">
+              {selected.size} selectat{selected.size === 1 ? "ă" : "e"}
+            </p>
+            <div className="flex flex-wrap gap-2">
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={() => setSelected(new Set())}
+              >
+                Anulează selecția
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                disabled={downloading}
+                onClick={() => void onDownloadSelected()}
+              >
+                {downloading
+                  ? "Se descarcă…"
+                  : `Descarcă PDF (${selected.size})`}
+              </Button>
+            </div>
+          </div>
+        ) : null}
+
+        <div className="overflow-x-auto rounded-2xl border border-white/[0.08]">
+          <table className="w-full text-sm">
+            <thead className="border-b border-white/10 text-left text-zinc-500">
               <tr>
-                <td
-                  colSpan={8}
-                  className="p-8 text-center text-sm text-zinc-500"
-                >
-                  Încă nu există facturi generate.
-                </td>
+                <th className="w-10 p-3">
+                  <input
+                    type="checkbox"
+                    aria-label="Selectează toate facturile cu PDF"
+                    checked={allSelectableSelected}
+                    disabled={selectableIds.length === 0}
+                    onChange={toggleAll}
+                    className="size-4 rounded border-white/20 bg-zinc-950 accent-[color:var(--brand)]"
+                  />
+                </th>
+                <th className="p-3 font-medium">Factură</th>
+                <th className="p-3 font-medium">Firmă</th>
+                <th className="p-3 font-medium">Perioadă</th>
+                <th className="p-3 font-medium">Net</th>
+                <th className="p-3 font-medium">TVA</th>
+                <th className="p-3 font-medium">Total</th>
+                <th className="p-3 font-medium">Email</th>
+                <th className="p-3" />
               </tr>
-            ) : null}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {(invoices ?? []).map((inv) => (
+                <InvoiceRow
+                  key={inv._id}
+                  inv={inv}
+                  sessionToken={token}
+                  selected={selected.has(inv._id)}
+                  onToggle={() => toggleOne(inv._id)}
+                  sending={sendingId === inv._id}
+                  regenerating={regeneratingId === inv._id}
+                  onSend={() => onSend(inv._id)}
+                  onRegeneratePdf={() => onRegeneratePdf(inv._id)}
+                />
+              ))}
+              {(invoices ?? []).length === 0 ? (
+                <tr>
+                  <td
+                    colSpan={9}
+                    className="p-8 text-center text-sm text-zinc-500"
+                  >
+                    Încă nu există facturi generate.
+                  </td>
+                </tr>
+              ) : null}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   );
@@ -296,24 +438,17 @@ export default function FacturiPage() {
 function InvoiceRow({
   inv,
   sessionToken,
+  selected,
+  onToggle,
   sending,
   regenerating,
   onSend,
   onRegeneratePdf,
 }: {
-  inv: {
-    _id: Id<"invoices">;
-    number: string;
-    series?: string;
-    periodLabel: string;
-    netAmount: number;
-    vatAmount: number;
-    grossAmount: number;
-    emailStatus: string;
-    emailError?: string;
-    company?: { name?: string; email?: string } | null;
-  };
+  inv: InvoiceListItem;
   sessionToken: string | null | undefined;
+  selected: boolean;
+  onToggle: () => void;
   sending: boolean;
   regenerating: boolean;
   onSend: () => void;
@@ -323,9 +458,21 @@ function InvoiceRow({
     api.invoices.getPdfUrl,
     withAdminToken(sessionToken, { id: inv._id }),
   );
+  const hasPdf = Boolean(inv.pdfStorageId);
 
   return (
     <tr className="border-b border-white/5">
+      <td className="p-3">
+        <input
+          type="checkbox"
+          aria-label={`Selectează factura ${inv.number}`}
+          checked={selected}
+          disabled={!hasPdf}
+          onChange={onToggle}
+          title={hasPdf ? undefined : "Fără PDF"}
+          className="size-4 rounded border-white/20 bg-zinc-950 accent-[color:var(--brand)] disabled:opacity-30"
+        />
+      </td>
       <td className="p-3 font-medium text-white">{inv.number}</td>
       <td className="p-3 text-zinc-300">
         <p>{inv.company?.name ?? "—"}</p>
