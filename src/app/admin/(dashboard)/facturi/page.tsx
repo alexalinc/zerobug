@@ -508,14 +508,23 @@ function InvoiceRow({
       </td>
       <td className="space-x-2 p-3 text-right whitespace-nowrap">
         {pdfUrl ? (
-          <a
-            href={pdfUrl}
-            target="_blank"
-            rel="noreferrer"
-            className={buttonVariants({ variant: "outline", size: "sm" })}
-          >
-            Vezi factura
-          </a>
+          <>
+            <a
+              href={pdfUrl}
+              target="_blank"
+              rel="noreferrer"
+              className={buttonVariants({ variant: "outline", size: "sm" })}
+            >
+              Vezi factura
+            </a>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => void downloadPdfFile(pdfUrl, `${inv.number}.pdf`)}
+            >
+              Descarcă
+            </Button>
+          </>
         ) : pdfUrl === null ? (
           <Button
             size="sm"
