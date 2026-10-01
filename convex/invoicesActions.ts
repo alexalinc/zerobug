@@ -235,7 +235,8 @@ async function buildInvoicePdf(data: {
   return await pdf.save();
 }
 
-export const generateAndSend = internalAction({
+/** Build and attach PDF only (no email). */
+export const generatePdfOnly = internalAction({
   args: { invoiceId: v.id("invoices") },
   returns: v.null(),
   handler: async (ctx, args) => {
@@ -268,7 +269,17 @@ export const generateAndSend = internalAction({
       invoiceId: args.invoiceId,
       pdfStorageId: storageId,
     });
+    return null;
+  },
+});
 
+export const generateAndSend = internalAction({
+  args: { invoiceId: v.id("invoices") },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    await ctx.runAction(internal.invoicesActions.generatePdfOnly, {
+      invoiceId: args.invoiceId,
+    });
     await ctx.runAction(internal.invoicesActions.sendEmailOnly, {
       invoiceId: args.invoiceId,
     });

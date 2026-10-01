@@ -273,6 +273,23 @@ export const resendEmail = action({
   },
 });
 
+/** Rebuild PDF for an existing invoice (admin). */
+export const regeneratePdf = action({
+  args: { sessionToken: v.string(), invoiceId: v.id("invoices") },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    await requireAdminSession(args.sessionToken);
+    const inv = await ctx.runQuery(internal.invoices.getInternal, {
+      id: args.invoiceId,
+    });
+    if (!inv) throw new Error("Factura nu a fost găsită");
+    await ctx.runAction(internal.invoicesActions.generatePdfOnly, {
+      invoiceId: args.invoiceId,
+    });
+    return null;
+  },
+});
+
 export const overviewStats = query({
   args: { sessionToken: v.string() },
   returns: v.object({

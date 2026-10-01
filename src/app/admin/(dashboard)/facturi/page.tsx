@@ -62,10 +62,13 @@ export default function FacturiPage() {
     api.invoicesBilling.generateForCompany,
   );
   const resend = useAction(api.invoices.resendEmail);
+  const regeneratePdf = useAction(api.invoices.regeneratePdf);
 
   const [showGenerate, setShowGenerate] = useState(false);
   const [busyId, setBusyId] = useState<Id<"companies"> | null>(null);
   const [sendingId, setSendingId] = useState<Id<"invoices"> | null>(null);
+  const [regeneratingId, setRegeneratingId] =
+    useState<Id<"invoices"> | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   async function onGenerate(companyId: Id<"companies">) {
@@ -91,6 +94,21 @@ export default function FacturiPage() {
       setError(e instanceof Error ? e.message : "Trimiterea a eșuat");
     } finally {
       setSendingId(null);
+    }
+  }
+
+  async function onRegeneratePdf(invoiceId: Id<"invoices">) {
+    if (!token) return;
+    setRegeneratingId(invoiceId);
+    setError(null);
+    try {
+      await regeneratePdf({ sessionToken: token, invoiceId });
+    } catch (e) {
+      setError(
+        e instanceof Error ? e.message : "Regenerarea PDF a eșuat",
+      );
+    } finally {
+      setRegeneratingId(null);
     }
   }
 
@@ -253,7 +271,9 @@ export default function FacturiPage() {
                 inv={inv}
                 sessionToken={token}
                 sending={sendingId === inv._id}
+                regenerating={regeneratingId === inv._id}
                 onSend={() => onSend(inv._id)}
+                onRegeneratePdf={() => onRegeneratePdf(inv._id)}
               />
             ))}
             {(invoices ?? []).length === 0 ? (
@@ -277,7 +297,9 @@ function InvoiceRow({
   inv,
   sessionToken,
   sending,
+  regenerating,
   onSend,
+  onRegeneratePdf,
 }: {
   inv: {
     _id: Id<"invoices">;
@@ -293,7 +315,9 @@ function InvoiceRow({
   };
   sessionToken: string | null | undefined;
   sending: boolean;
+  regenerating: boolean;
   onSend: () => void;
+  onRegeneratePdf: () => void;
 }) {
   const pdfUrl = useQuery(
     api.invoices.getPdfUrl,
@@ -340,9 +364,18 @@ function InvoiceRow({
           >
             Vezi factura
           </a>
+        ) : pdfUrl === null ? (
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={regenerating}
+            onClick={onRegeneratePdf}
+          >
+            {regenerating ? "Se regenerează…" : "Regenerează PDF"}
+          </Button>
         ) : (
           <Button size="sm" variant="outline" disabled>
-            Fără PDF
+            …
           </Button>
         )}
         <Button size="sm" variant="outline" disabled={sending} onClick={onSend}>
