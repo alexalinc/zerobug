@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import {
   Inbox,
@@ -14,9 +14,18 @@ import {
   ExternalLink,
   Send,
   ArrowLeft,
+  Reply,
+  X,
 } from "lucide-react";
 import { Button, buttonVariants } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
+import {
+  replySubjectFor,
+  resolveReplyToAddress,
+} from "@/lib/email/reply-helpers";
 import type {
   AdminEmailDetail,
   AdminEmailListItem,
@@ -134,6 +143,14 @@ export function AdminEmailsClient({ view }: { view: EmailsView }) {
   const [detailLoading, setDetailLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [flash, setFlash] = useState<string | null>(null);
+  const [replyOpen, setReplyOpen] = useState(false);
+  const [replyTo, setReplyTo] = useState("");
+  const [replySubject, setReplySubject] = useState("");
+  const [replyBody, setReplyBody] = useState("");
+  const [replySending, setReplySending] = useState(false);
+  const [replyError, setReplyError] = useState<string | null>(null);
+  const replyComposerRef = useRef<HTMLDivElement | null>(null);
+  const replyBodyRef = useRef<HTMLTextAreaElement | null>(null);
 
   const trashIds = useMemo(() => new Set(trash.map((t) => t.id)), [trash]);
 
@@ -150,6 +167,10 @@ export function AdminEmailsClient({ view }: { view: EmailsView }) {
   const selectedMeta = useMemo(
     () => visibleEmails.find((e) => e.id === selectedId) ?? null,
     [visibleEmails, selectedId],
+  );
+
+  const canReply = Boolean(
+    detail && selectedMeta && selectedMeta.folder === "inbox",
   );
 
   const loadList = useCallback(
@@ -207,17 +228,24 @@ export function AdminEmailsClient({ view }: { view: EmailsView }) {
     setSelectedId(null);
     setDetail(null);
     setEmails([]);
+    setReplyOpen(false);
+    setReplyError(null);
     void loadList();
   }, [loadList]);
 
   useEffect(() => {
     if (!selectedId || !selectedMeta) {
       setDetail(null);
+      setReplyOpen(false);
+      setReplyError(null);
       return;
     }
 
     let cancelled = false;
     setDetailLoading(true);
+    setReplyOpen(false);
+    setReplyError(null);
+    setReplyBody("");
 
     void (async () => {
       try {
@@ -232,7 +260,17 @@ export function AdminEmailsClient({ view }: { view: EmailsView }) {
         if (!res.ok) {
           throw new Error(body.error || "Nu am putut încărca emailul");
         }
-        if (!cancelled) setDetail(body.email ?? null);
+        if (!cancelled) {
+          const email = body.email ?? null;
+          setDetail(email);
+          if (email && email.folder === "inbox") {
+            setReplyTo(resolveReplyToAddress(email) ?? "");
+            setReplySubject(replySubjectFor(email.subject));
+          } else {
+            setReplyTo("");
+            setReplySubject("");
+          }
+        }
       } catch (err) {
         if (!cancelled) {
           setDetail(null);
@@ -252,6 +290,71 @@ export function AdminEmailsClient({ view }: { view: EmailsView }) {
       cancelled = true;
     };
   }, [selectedId, selectedMeta]);
+
+  function openReplyComposer() {
+    if (!detail || detail.folder !== "inbox") return;
+    setReplyTo(resolveReplyToAddress(detail) ?? "");
+    setReplySubject((prev) => prev || replySubjectFor(detail.subject));
+    setReplyError(null);
+    setReplyOpen(true);
+    requestAnimationFrame(() => {
+      replyComposerRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "nearest",
+      });
+      replyBodyRef.current?.focus();
+    });
+  }
+
+  async function sendReply() {
+    if (!detail || detail.folder !== "inbox" || replySending) return;
+
+    const subject = replySubject.trim();
+    const body = replyBody.trim();
+    if (subject.length < 2 || body.length < 2) {
+      setReplyError("Completează subiectul și mesajul");
+      return;
+    }
+
+    setReplySending(true);
+    setReplyError(null);
+
+    try {
+      const res = await fetch("/api/admin/emails", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "reply",
+          emailId: detail.id,
+          folder: detail.folder,
+          subject,
+          body,
+          to: replyTo.trim() || undefined,
+        }),
+      });
+      const payload = (await res.json().catch(() => ({}))) as {
+        error?: string;
+        to?: string;
+      };
+      if (!res.ok) {
+        throw new Error(payload.error || "Trimiterea a eșuat");
+      }
+      setReplyOpen(false);
+      setReplyBody("");
+      setFlash(
+        payload.to
+          ? `Răspuns trimis către ${payload.to}`
+          : "Răspuns trimis",
+      );
+      setTimeout(() => setFlash(null), 3500);
+    } catch (err) {
+      setReplyError(
+        err instanceof Error ? err.message : "Trimiterea a eșuat",
+      );
+    } finally {
+      setReplySending(false);
+    }
+  }
 
   function moveToTrash(email: AdminEmailListItem) {
     const next: TrashEntry[] = [
@@ -518,8 +621,8 @@ export function AdminEmailsClient({ view }: { view: EmailsView }) {
               </div>
             </div>
           ) : (
-            <div className="flex h-full flex-col">
-              <div className="space-y-3 border-b border-white/[0.06] p-4">
+            <div className="flex h-full max-h-[min(85dvh,920px)] flex-col lg:max-h-[70vh]">
+              <div className="shrink-0 space-y-3 border-b border-white/[0.06] p-4">
                 <div className="lg:hidden">
                   <Button
                     type="button"
@@ -529,6 +632,7 @@ export function AdminEmailsClient({ view }: { view: EmailsView }) {
                     onClick={() => {
                       setSelectedId(null);
                       setDetail(null);
+                      setReplyOpen(false);
                     }}
                   >
                     <ArrowLeft className="h-4 w-4" />
@@ -539,7 +643,19 @@ export function AdminEmailsClient({ view }: { view: EmailsView }) {
                   <h2 className="text-base font-semibold leading-snug text-white sm:text-lg">
                     {detail.subject}
                   </h2>
-                  <div className="flex flex-wrap gap-2">
+                  <div className="hidden flex-wrap gap-2 sm:flex">
+                    {canReply ? (
+                      <Button
+                        type="button"
+                        size="sm"
+                        className="gap-1.5"
+                        onClick={openReplyComposer}
+                        disabled={replyOpen}
+                      >
+                        <Reply className="h-3.5 w-3.5" />
+                        Răspunde
+                      </Button>
+                    ) : null}
                     {view === "trash" && selectedMeta ? (
                       <Button
                         type="button"
@@ -675,24 +791,216 @@ export function AdminEmailsClient({ view }: { view: EmailsView }) {
                   </div>
                 ) : null}
               </div>
-              <div className="min-h-0 flex-1 overflow-auto bg-[#070709] p-4">
-                {detail.html ? (
-                  <iframe
-                    title={detail.subject}
-                    sandbox=""
-                    className="min-h-[420px] w-full rounded-xl border border-white/10 bg-white"
-                    srcDoc={detail.html}
-                  />
-                ) : detail.text ? (
-                  <pre className="whitespace-pre-wrap rounded-xl border border-white/10 bg-white/[0.03] p-4 font-sans text-sm text-zinc-300">
-                    {detail.text}
-                  </pre>
-                ) : (
-                  <p className="text-sm text-zinc-500">
-                    Acest email nu are conținut text/HTML disponibil.
-                  </p>
-                )}
+
+              <div className="min-h-0 flex-1 overflow-y-auto">
+                <div className="bg-[#070709] p-4">
+                  {detail.html ? (
+                    <iframe
+                      title={detail.subject}
+                      sandbox=""
+                      className="min-h-[280px] w-full rounded-xl border border-white/10 bg-white sm:min-h-[360px]"
+                      srcDoc={detail.html}
+                    />
+                  ) : detail.text ? (
+                    <pre className="whitespace-pre-wrap rounded-xl border border-white/10 bg-white/[0.03] p-4 font-sans text-sm text-zinc-300">
+                      {detail.text}
+                    </pre>
+                  ) : (
+                    <p className="text-sm text-zinc-500">
+                      Acest email nu are conținut text/HTML disponibil.
+                    </p>
+                  )}
+                </div>
+
+                {canReply && replyOpen ? (
+                  <div
+                    ref={replyComposerRef}
+                    className="border-t border-white/[0.08] bg-zinc-950/95 p-4 pb-[max(1rem,env(safe-area-inset-bottom))]"
+                  >
+                    <div className="mb-3 flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="text-sm font-semibold text-white">
+                          Răspunde
+                        </p>
+                        <p className="mt-0.5 truncate text-xs text-zinc-500">
+                          Din ZeroBug via Resend · reply-to contact@zerobug.ro
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (!replySending) {
+                            setReplyOpen(false);
+                            setReplyError(null);
+                          }
+                        }}
+                        className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-white/10 text-zinc-400 hover:bg-white/[0.04] hover:text-white"
+                        aria-label="Închide răspunsul"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    </div>
+
+                    <div className="space-y-3">
+                      <div className="space-y-1.5">
+                        <Label htmlFor="email-reply-to">Către</Label>
+                        <Input
+                          id="email-reply-to"
+                          value={replyTo}
+                          onChange={(e) => setReplyTo(e.target.value)}
+                          disabled={replySending}
+                          autoComplete="email"
+                          inputMode="email"
+                          className="border-white/10 bg-white/[0.03] text-white"
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label htmlFor="email-reply-subject">Subiect</Label>
+                        <Input
+                          id="email-reply-subject"
+                          value={replySubject}
+                          onChange={(e) => setReplySubject(e.target.value)}
+                          disabled={replySending}
+                          className="border-white/10 bg-white/[0.03] text-white"
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label htmlFor="email-reply-body">Mesaj</Label>
+                        <Textarea
+                          id="email-reply-body"
+                          ref={replyBodyRef}
+                          rows={7}
+                          value={replyBody}
+                          onChange={(e) => setReplyBody(e.target.value)}
+                          disabled={replySending}
+                          placeholder="Scrie răspunsul aici…"
+                          className="min-h-[140px] resize-y border-white/10 bg-white/[0.03] text-white placeholder:text-zinc-600"
+                        />
+                      </div>
+
+                      {replyError ? (
+                        <p className="text-sm text-red-400">{replyError}</p>
+                      ) : (
+                        <p className="text-xs text-zinc-500">
+                          Mesajul original e citat automat la trimitere.
+                        </p>
+                      )}
+
+                      <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          disabled={replySending}
+                          onClick={() => {
+                            setReplyOpen(false);
+                            setReplyError(null);
+                          }}
+                          className="w-full border-white/10 bg-transparent text-zinc-300 sm:w-auto"
+                        >
+                          Anulează
+                        </Button>
+                        <Button
+                          type="button"
+                          onClick={() => void sendReply()}
+                          disabled={
+                            replySending ||
+                            replySubject.trim().length < 2 ||
+                            replyBody.trim().length < 2
+                          }
+                          className="w-full gap-2 sm:w-auto"
+                        >
+                          {replySending ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <Send className="h-4 w-4" />
+                          )}
+                          {replySending ? "Se trimite…" : "Trimite răspunsul"}
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                ) : null}
               </div>
+
+              {canReply && !replyOpen ? (
+                <div className="sticky bottom-0 z-10 shrink-0 border-t border-white/[0.08] bg-zinc-950/95 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur sm:hidden">
+                  <div className="flex gap-2">
+                    <Button
+                      type="button"
+                      className="h-11 flex-1 gap-2 text-sm"
+                      onClick={openReplyComposer}
+                    >
+                      <Reply className="h-4 w-4" />
+                      Răspunde
+                    </Button>
+                    {view === "trash" && selectedMeta ? (
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        className="h-11 gap-1.5 border-white/10 bg-transparent text-zinc-300"
+                        onClick={() =>
+                          restoreFromTrash({
+                            ...(selectedMeta as TrashEntry),
+                            trashed_at:
+                              (selectedMeta as TrashEntry).trashed_at ??
+                              new Date().toISOString(),
+                          })
+                        }
+                      >
+                        <RotateCcw className="h-3.5 w-3.5" />
+                        Restaurează
+                      </Button>
+                    ) : selectedMeta ? (
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        className="h-11 gap-1.5 border-red-500/30 bg-transparent text-red-300"
+                        onClick={() => moveToTrash(selectedMeta)}
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                        Coș
+                      </Button>
+                    ) : null}
+                  </div>
+                </div>
+              ) : null}
+
+              {!canReply && selectedMeta ? (
+                <div className="sticky bottom-0 z-10 shrink-0 border-t border-white/[0.08] bg-zinc-950/95 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur sm:hidden">
+                  {view === "trash" ? (
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      className="h-11 w-full gap-1.5 border-white/10 bg-transparent text-zinc-300"
+                      onClick={() =>
+                        restoreFromTrash({
+                          ...(selectedMeta as TrashEntry),
+                          trashed_at:
+                            (selectedMeta as TrashEntry).trashed_at ??
+                            new Date().toISOString(),
+                        })
+                      }
+                    >
+                      <RotateCcw className="h-3.5 w-3.5" />
+                      Restaurează
+                    </Button>
+                  ) : (
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      className="h-11 w-full gap-1.5 border-red-500/30 bg-transparent text-red-300"
+                      onClick={() => moveToTrash(selectedMeta)}
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                      Mută în coș
+                    </Button>
+                  )}
+                </div>
+              ) : null}
             </div>
           )}
         </div>
