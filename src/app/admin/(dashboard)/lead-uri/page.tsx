@@ -16,6 +16,7 @@ import { MAINTENANCE_PLANS } from "@/lib/services";
 import { cn } from "@/lib/utils";
 import {
   Building2,
+  CheckCircle2,
   Loader2,
   Mail,
   MessageSquare,
@@ -24,8 +25,9 @@ import {
   Reply,
   Trash2,
   X,
+  XCircle,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 const TYPE_LABEL: Record<string, string> = {
   service_quote: "Ofertă serviciu",
@@ -686,9 +688,25 @@ export default function LeaduriPage() {
   const [replySending, setReplySending] = useState(false);
   const [replyError, setReplyError] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<Id<"leads"> | null>(null);
-  const [flash, setFlash] = useState<string | null>(null);
+  const [toast, setToast] = useState<{
+    type: "success" | "error";
+    message: string;
+  } | null>(null);
+  const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [threadLeadId, setThreadLeadId] = useState<Id<"leads"> | null>(null);
   const [syncing, setSyncing] = useState(false);
+
+  function showToast(type: "success" | "error", message: string) {
+    if (toastTimer.current) clearTimeout(toastTimer.current);
+    setToast({ type, message });
+    toastTimer.current = setTimeout(() => setToast(null), 4500);
+  }
+
+  useEffect(() => {
+    return () => {
+      if (toastTimer.current) clearTimeout(toastTimer.current);
+    };
+  }, []);
 
   useEffect(() => {
     if (!token) return;
@@ -722,18 +740,20 @@ export default function LeaduriPage() {
     try {
       const result = await syncInbound({ sessionToken: token });
       if (!result.ok) {
-        setFlash(result.error || "Sync eșuat — verifică Receiving în Resend");
+        showToast(
+          "error",
+          result.error || "Sync eșuat — verifică Receiving în Resend",
+        );
       } else {
-        setFlash(
+        showToast(
+          "success",
           result.imported > 0
             ? `${result.imported} răspuns(uri) importate`
             : `Nimic nou (${result.scanned} emailuri scanate)`,
         );
       }
-      setTimeout(() => setFlash(null), 4000);
     } catch (err) {
-      setFlash(err instanceof Error ? err.message : "Sync eșuat");
-      setTimeout(() => setFlash(null), 4000);
+      showToast("error", err instanceof Error ? err.message : "Sync eșuat");
     } finally {
       setSyncing(false);
     }
@@ -747,6 +767,8 @@ export default function LeaduriPage() {
 
   async function sendReply() {
     if (!token || !replyLead) return;
+    const recipientName = replyLead.name;
+    const recipientEmail = replyLead.email;
     setReplySending(true);
     setReplyError(null);
     try {
@@ -758,13 +780,19 @@ export default function LeaduriPage() {
       });
       if (!result.ok) {
         setReplyError(result.error || "Trimiterea a eșuat");
+        showToast("error", result.error || "Emailul nu a putut fi trimis");
         return;
       }
       setReplyLead(null);
-      setFlash("Răspunsul a fost trimis pe email");
-      setTimeout(() => setFlash(null), 3500);
+      showToast(
+        "success",
+        `Email trimis cu succes către ${recipientName} (${recipientEmail})`,
+      );
     } catch (err) {
-      setReplyError(err instanceof Error ? err.message : "Trimiterea a eșuat");
+      const message =
+        err instanceof Error ? err.message : "Trimiterea a eșuat";
+      setReplyError(message);
+      showToast("error", message);
     } finally {
       setReplySending(false);
     }
@@ -797,10 +825,12 @@ export default function LeaduriPage() {
     try {
       await removeLead({ sessionToken: token, id: lead._id });
       if (replyLead?._id === lead._id) setReplyLead(null);
-      setFlash("Cererea a fost ștearsă");
-      setTimeout(() => setFlash(null), 3000);
+      showToast("success", "Cererea a fost ștearsă");
     } catch (err) {
-      alert(err instanceof Error ? err.message : "Ștergerea a eșuat");
+      showToast(
+        "error",
+        err instanceof Error ? err.message : "Ștergerea a eșuat",
+      );
     } finally {
       setDeletingId(null);
     }
@@ -837,9 +867,38 @@ export default function LeaduriPage() {
         </Button>
       </div>
 
-      {flash ? (
-        <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-300">
-          {flash}
+      {toast ? (
+        <div
+          role="status"
+          aria-live="polite"
+          className={cn(
+            "fixed bottom-20 left-4 right-4 z-[70] mx-auto flex max-w-md items-start gap-3 rounded-2xl border px-4 py-3 shadow-2xl backdrop-blur-md sm:bottom-8 sm:left-auto sm:right-6",
+            toast.type === "success"
+              ? "border-emerald-500/40 bg-emerald-950/95 text-emerald-100"
+              : "border-red-500/40 bg-red-950/95 text-red-100",
+          )}
+        >
+          {toast.type === "success" ? (
+            <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-emerald-400" />
+          ) : (
+            <XCircle className="mt-0.5 h-5 w-5 shrink-0 text-red-400" />
+          )}
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-medium">
+              {toast.type === "success" ? "Succes" : "Eroare"}
+            </p>
+            <p className="mt-0.5 text-sm leading-snug text-current/90">
+              {toast.message}
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => setToast(null)}
+            className="shrink-0 rounded-lg p-1 opacity-70 hover:opacity-100"
+            aria-label="Închide"
+          >
+            <X className="h-4 w-4" />
+          </button>
         </div>
       ) : null}
 
