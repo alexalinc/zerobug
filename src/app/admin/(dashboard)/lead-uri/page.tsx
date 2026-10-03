@@ -27,7 +27,7 @@ import {
   X,
   XCircle,
 } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 const TYPE_LABEL: Record<string, string> = {
   service_quote: "Ofertă serviciu",
@@ -50,6 +50,31 @@ const STATUS_STYLE: Record<"new" | "contacted" | "won" | "lost", string> = {
 };
 
 const STATUS_ACTIONS = ["contacted", "won", "lost"] as const;
+
+type LeadFilter =
+  | "all"
+  | "new"
+  | "contacted"
+  | "answered"
+  | "won"
+  | "lost";
+
+const LEAD_FILTERS: Array<{
+  id: LeadFilter;
+  label: string;
+  hint?: string;
+}> = [
+  { id: "all", label: "Toate" },
+  { id: "new", label: "New" },
+  { id: "contacted", label: "Contacted" },
+  {
+    id: "answered",
+    label: "Answered",
+    hint: "Clientul a răspuns la emailul nostru",
+  },
+  { id: "won", label: "Won" },
+  { id: "lost", label: "Lost" },
+];
 
 type LeadRow = {
   _id: Id<"leads">;
@@ -76,6 +101,10 @@ type LeadRow = {
   lastInboundAt?: number;
   createdAt: number;
 };
+
+function leadHasClientReply(lead: LeadRow) {
+  return lead.lastInboundAt != null || (lead.unreadReplyCount ?? 0) > 0;
+}
 
 type LeadMessage = {
   _id: Id<"leadMessages">;
@@ -448,69 +477,187 @@ function ReplyBadge({ count }: { count: number }) {
   );
 }
 
-function LeadThread({
-  leadId,
+function ThreadModal({
+  lead,
   token,
   open,
+  onClose,
+  onReply,
 }: {
-  leadId: Id<"leads">;
+  lead: LeadRow | null;
   token: string | null;
   open: boolean;
+  onClose: () => void;
+  onReply: () => void;
 }) {
   const messages = useQuery(
     api.leadMessages.listForLead,
-    open && token
-      ? withAdminToken(token, { leadId })
+    open && token && lead
+      ? withAdminToken(token, { leadId: lead._id })
       : "skip",
   ) as LeadMessage[] | undefined;
 
-  if (!open) return null;
+  useEffect(() => {
+    if (!open) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") onClose();
+    }
+    window.addEventListener("keydown", onKey);
+    return () => {
+      document.body.style.overflow = prev;
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [open, onClose]);
 
-  if (messages === undefined) {
-    return (
-      <p className="mt-3 text-xs text-zinc-500">Se încarcă conversația…</p>
-    );
-  }
+  if (!open || !lead) return null;
 
-  if (messages.length === 0) {
-    return (
-      <p className="mt-3 text-xs text-zinc-500">
-        Niciun email în thread încă. După ce răspunzi sau clientul reply-uiește,
-        mesajele apar aici.
-      </p>
-    );
-  }
+  const initialMessage = lead.message?.trim();
 
   return (
-    <ul className="mt-3 max-h-72 space-y-2 overflow-y-auto">
-      {messages.map((m) => (
-        <li
-          key={m._id}
-          className={cn(
-            "rounded-xl border px-3 py-2.5 text-sm",
-            m.direction === "inbound"
-              ? "border-[color:var(--brand)]/25 bg-[color:var(--brand)]/5"
-              : "border-white/10 bg-white/[0.03]",
-          )}
-        >
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <p className="text-[11px] font-medium uppercase tracking-wide text-zinc-500">
-              {m.direction === "inbound" ? "Client" : "Tu (ZeroBug)"}
-              {m.direction === "inbound" && !m.readAt ? (
-                <span className="ml-2 text-[color:var(--brand)]">nou</span>
-              ) : null}
-            </p>
-            <p className="text-[11px] text-zinc-600">
-              {new Date(m.createdAt).toLocaleString("ro-RO")}
-            </p>
+    <div className="fixed inset-0 z-[60] flex items-end justify-center sm:items-center">
+      <button
+        type="button"
+        aria-label="Închide"
+        className="absolute inset-0 bg-black/70 backdrop-blur-sm"
+        onClick={onClose}
+      />
+      <div className="relative z-10 flex max-h-[92dvh] w-full max-w-xl flex-col overflow-hidden rounded-t-3xl border border-white/10 bg-zinc-950 shadow-2xl sm:mx-4 sm:rounded-3xl">
+        <div className="relative border-b border-white/[0.06] px-4 py-4 sm:px-5">
+          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top,_rgba(34,197,94,0.1),_transparent_60%)]" />
+          <div className="relative flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-0.5 text-[11px] font-medium text-zinc-300">
+                  <MessageSquare className="h-3 w-3" />
+                  Conversație
+                </span>
+                <TypePill type={lead.type} />
+                <StatusPill status={lead.status} />
+                <ReplyBadge count={lead.unreadReplyCount ?? 0} />
+              </div>
+              <h2 className="mt-2 truncate text-lg font-semibold text-white">
+                {lead.name}
+              </h2>
+              <p className="mt-0.5 truncate text-sm text-zinc-400">
+                {lead.email}
+                {lead.phone ? ` · ${lead.phone}` : ""}
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={onClose}
+              className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-white/10 text-zinc-400 hover:bg-white/[0.04] hover:text-white"
+              aria-label="Închide"
+            >
+              <X className="h-4 w-4" />
+            </button>
           </div>
-          <p className="mt-1 text-xs font-medium text-zinc-300">{m.subject}</p>
-          <p className="mt-1 whitespace-pre-wrap text-sm leading-relaxed text-zinc-400">
-            {m.bodyText}
-          </p>
-        </li>
-      ))}
-    </ul>
+        </div>
+
+        <div className="flex-1 space-y-3 overflow-y-auto px-4 py-4 sm:px-5">
+          {initialMessage ? (
+            <div className="rounded-2xl border border-dashed border-white/10 bg-white/[0.02] px-3.5 py-3">
+              <p className="text-[11px] font-medium uppercase tracking-wide text-zinc-500">
+                Cerere inițială ·{" "}
+                {new Date(lead.createdAt).toLocaleString("ro-RO")}
+              </p>
+              <p className="mt-1.5 whitespace-pre-wrap text-sm leading-relaxed text-zinc-300">
+                {initialMessage}
+              </p>
+            </div>
+          ) : null}
+
+          {messages === undefined ? (
+            <div className="flex items-center justify-center gap-2 py-10 text-sm text-zinc-500">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Se încarcă conversația…
+            </div>
+          ) : messages.length === 0 ? (
+            <div className="rounded-2xl border border-white/10 bg-white/[0.02] px-4 py-10 text-center">
+              <MessageSquare className="mx-auto h-8 w-8 text-zinc-600" />
+              <p className="mt-3 text-sm text-zinc-400">
+                Niciun email în thread încă.
+              </p>
+              <p className="mt-1 text-xs text-zinc-600">
+                După ce răspunzi sau clientul reply-uiește, mesajele apar aici.
+              </p>
+            </div>
+          ) : (
+            <ul className="space-y-3">
+              {messages.map((m) => {
+                const inbound = m.direction === "inbound";
+                return (
+                  <li
+                    key={m._id}
+                    className={cn(
+                      "flex",
+                      inbound ? "justify-start" : "justify-end",
+                    )}
+                  >
+                    <div
+                      className={cn(
+                        "max-w-[92%] rounded-2xl px-3.5 py-3 sm:max-w-[85%]",
+                        inbound
+                          ? "rounded-tl-md border border-[color:var(--brand)]/30 bg-[color:var(--brand)]/10"
+                          : "rounded-tr-md border border-white/10 bg-white/[0.06]",
+                      )}
+                    >
+                      <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                        <p
+                          className={cn(
+                            "text-[11px] font-semibold uppercase tracking-wide",
+                            inbound
+                              ? "text-[color:var(--brand)]"
+                              : "text-zinc-400",
+                          )}
+                        >
+                          {inbound ? "Client" : "ZeroBug"}
+                        </p>
+                        {inbound && !m.readAt ? (
+                          <span className="rounded-full bg-[color:var(--brand)]/20 px-1.5 py-0.5 text-[10px] font-medium text-[color:var(--brand)]">
+                            nou
+                          </span>
+                        ) : null}
+                        <p className="text-[11px] text-zinc-600">
+                          {new Date(m.createdAt).toLocaleString("ro-RO")}
+                        </p>
+                      </div>
+                      <p className="mt-1 text-xs font-medium text-zinc-200">
+                        {m.subject}
+                      </p>
+                      <p className="mt-1.5 whitespace-pre-wrap text-sm leading-relaxed text-zinc-300">
+                        {m.bodyText}
+                      </p>
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </div>
+
+        <div className="flex flex-col-reverse gap-2 border-t border-white/[0.06] px-4 py-4 sm:flex-row sm:justify-end sm:px-5">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={onClose}
+            className="w-full sm:w-auto"
+          >
+            Închide
+          </Button>
+          <Button
+            type="button"
+            onClick={onReply}
+            className="w-full gap-2 sm:w-auto"
+          >
+            <Reply className="h-4 w-4" />
+            Răspunde
+          </Button>
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -518,8 +665,7 @@ function LeadCard({
   lead,
   token,
   deleting,
-  threadOpen,
-  onToggleThread,
+  onOpenThread,
   onUpdate,
   onRetry,
   onReply,
@@ -528,8 +674,7 @@ function LeadCard({
   lead: LeadRow;
   token: string | null;
   deleting: boolean;
-  threadOpen: boolean;
-  onToggleThread: () => void;
+  onOpenThread: () => void;
   onUpdate: (id: Id<"leads">, status: (typeof STATUS_ACTIONS)[number]) => void;
   onRetry: (leadId: Id<"leads">) => void;
   onReply: () => void;
@@ -633,14 +778,16 @@ function LeadCard({
 
       <div className="mt-4 space-y-3 border-t border-white/[0.06] pt-3">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <button
+          <Button
             type="button"
-            onClick={onToggleThread}
-            className="inline-flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-wide text-zinc-400 hover:text-white"
+            size="sm"
+            variant="outline"
+            className="h-8 gap-1.5 border-white/10"
+            onClick={onOpenThread}
           >
             <MessageSquare className="h-3.5 w-3.5" />
-            {threadOpen ? "Ascunde conversația" : "Vezi conversația"}
-          </button>
+            Vezi conversația
+          </Button>
           <Button
             type="button"
             size="sm"
@@ -657,7 +804,6 @@ function LeadCard({
             Șterge
           </Button>
         </div>
-        <LeadThread leadId={lead._id} token={token} open={threadOpen} />
         <div>
           <p className="mb-2 text-[11px] font-medium uppercase tracking-wide text-zinc-500">
             Status
@@ -693,8 +839,36 @@ export default function LeaduriPage() {
     message: string;
   } | null>(null);
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const [threadLeadId, setThreadLeadId] = useState<Id<"leads"> | null>(null);
+  const [threadLead, setThreadLead] = useState<LeadRow | null>(null);
   const [syncing, setSyncing] = useState(false);
+  const [filter, setFilter] = useState<LeadFilter>("all");
+
+  const filterCounts = useMemo(() => {
+    const rows = leads ?? [];
+    const counts: Record<LeadFilter, number> = {
+      all: rows.length,
+      new: 0,
+      contacted: 0,
+      answered: 0,
+      won: 0,
+      lost: 0,
+    };
+    for (const lead of rows) {
+      if (lead.status === "new") counts.new += 1;
+      if (lead.status === "contacted") counts.contacted += 1;
+      if (lead.status === "won") counts.won += 1;
+      if (lead.status === "lost") counts.lost += 1;
+      if (leadHasClientReply(lead)) counts.answered += 1;
+    }
+    return counts;
+  }, [leads]);
+
+  const filteredLeads = useMemo(() => {
+    const rows = leads ?? [];
+    if (filter === "all") return rows;
+    if (filter === "answered") return rows.filter(leadHasClientReply);
+    return rows.filter((l) => l.status === filter);
+  }, [leads, filter]);
 
   function showToast(type: "success" | "error", message: string) {
     if (toastTimer.current) clearTimeout(toastTimer.current);
@@ -728,10 +902,13 @@ export default function LeaduriPage() {
     markRead(lead._id);
   }
 
-  function toggleThread(lead: LeadRow) {
-    const next = threadLeadId === lead._id ? null : lead._id;
-    setThreadLeadId(next);
-    if (next) markRead(lead._id);
+  function openThread(lead: LeadRow) {
+    setThreadLead(lead);
+    markRead(lead._id);
+  }
+
+  function closeThread() {
+    setThreadLead(null);
   }
 
   async function onSync() {
@@ -850,7 +1027,12 @@ export default function LeaduriPage() {
           </p>
           {!loading ? (
             <p className="mt-2 text-xs text-zinc-500">
-              {leads.length} {leads.length === 1 ? "cerere" : "cereri"}
+              {filteredLeads.length}
+              {filter !== "all" ? ` / ${leads.length}` : ""}{" "}
+              {filteredLeads.length === 1 ? "cerere" : "cereri"}
+              {filter !== "all"
+                ? ` · filtru ${LEAD_FILTERS.find((f) => f.id === filter)?.label}`
+                : ""}
             </p>
           ) : null}
         </div>
@@ -866,6 +1048,41 @@ export default function LeaduriPage() {
           {syncing ? "Sync…" : "Sync reply-uri"}
         </Button>
       </div>
+
+      {!loading && leads.length > 0 ? (
+        <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1 [scrollbar-width:none]">
+          {LEAD_FILTERS.map((item) => {
+            const active = filter === item.id;
+            const count = filterCounts[item.id];
+            return (
+              <button
+                key={item.id}
+                type="button"
+                title={item.hint}
+                onClick={() => setFilter(item.id)}
+                className={cn(
+                  "inline-flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors",
+                  active
+                    ? item.id === "answered"
+                      ? "border-[color:var(--brand)]/50 bg-[color:var(--brand)]/15 text-[color:var(--brand)]"
+                      : "border-white/20 bg-white/10 text-white"
+                    : "border-white/10 text-zinc-400 hover:border-white/20 hover:text-white",
+                )}
+              >
+                {item.label}
+                <span
+                  className={cn(
+                    "rounded-full px-1.5 py-0.5 text-[10px] tabular-nums",
+                    active ? "bg-white/10 text-current" : "bg-white/5 text-zinc-500",
+                  )}
+                >
+                  {count}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      ) : null}
 
       {toast ? (
         <div
@@ -908,17 +1125,20 @@ export default function LeaduriPage() {
         <div className="rounded-2xl border border-dashed border-white/10 px-4 py-12 text-center text-sm text-zinc-500">
           Nicio cerere încă.
         </div>
+      ) : filteredLeads.length === 0 ? (
+        <div className="rounded-2xl border border-dashed border-white/10 px-4 py-12 text-center text-sm text-zinc-500">
+          Nicio cerere pentru filtrul selectat.
+        </div>
       ) : (
         <>
           <div className="space-y-3 lg:hidden">
-            {leads.map((lead) => (
+            {filteredLeads.map((lead) => (
               <LeadCard
                 key={lead._id}
                 lead={lead}
                 token={token}
                 deleting={deletingId === lead._id}
-                threadOpen={threadLeadId === lead._id}
-                onToggleThread={() => toggleThread(lead)}
+                onOpenThread={() => openThread(lead)}
                 onUpdate={onUpdate}
                 onRetry={onRetry}
                 onReply={() => openReply(lead)}
@@ -928,110 +1148,146 @@ export default function LeaduriPage() {
           </div>
 
           <div className="hidden overflow-x-auto rounded-2xl border border-white/10 lg:block">
-            <table className="w-full text-sm">
+            <table className="w-full table-fixed text-sm">
               <thead className="border-b border-white/10 text-left text-zinc-400">
                 <tr>
-                  <th className="p-3 font-medium">Tip</th>
-                  <th className="p-3 font-medium">Contact</th>
-                  <th className="p-3 font-medium">Servicii / plan</th>
-                  <th className="p-3 font-medium">Mesaj</th>
-                  <th className="p-3 font-medium">Status</th>
-                  <th className="p-3 font-medium">Google Ads</th>
-                  <th className="p-3 font-medium">Acțiuni</th>
+                  <th className="w-[12%] p-3 font-medium">Tip</th>
+                  <th className="w-[16%] p-3 font-medium">Contact</th>
+                  <th className="w-[16%] p-3 font-medium">Servicii / plan</th>
+                  <th className="w-[22%] p-3 font-medium">Mesaj</th>
+                  <th className="w-[12%] p-3 font-medium">Status</th>
+                  <th className="w-[10%] p-3 font-medium">Google Ads</th>
+                  <th className="w-[12%] p-3 font-medium">Acțiuni</th>
                 </tr>
               </thead>
               <tbody>
-                {leads.map((l) => (
-                  <tr
-                    key={l._id}
-                    className={cn(
-                      "border-b border-white/5 align-top",
-                      (l.unreadReplyCount ?? 0) > 0 &&
-                        "bg-[color:var(--brand)]/[0.04]",
-                    )}
-                  >
-                    <td className="whitespace-nowrap p-3">
-                      <div className="flex flex-col items-start gap-1.5">
-                        <TypePill type={l.type} />
-                        <ReplyBadge count={l.unreadReplyCount ?? 0} />
-                      </div>
-                      <p className="mt-2 text-xs text-zinc-500">
-                        {new Date(l.createdAt).toLocaleString("ro-RO")}
-                      </p>
-                      <button
-                        type="button"
-                        onClick={() => toggleThread(l)}
-                        className="mt-2 text-xs text-zinc-400 underline-offset-2 hover:text-white hover:underline"
-                      >
-                        {threadLeadId === l._id
-                          ? "Ascunde thread"
-                          : "Vezi thread"}
-                      </button>
-                      {threadLeadId === l._id ? (
-                        <LeadThread
-                          leadId={l._id}
-                          token={token}
-                          open
-                        />
-                      ) : null}
-                    </td>
-                    <td className="p-3">
-                      <p className="font-medium text-white">{l.name}</p>
-                      <a
-                        href={`mailto:${l.email}`}
-                        className="text-zinc-400 hover:text-white"
-                      >
-                        {l.email}
-                      </a>
-                      {l.phone ? (
+                {filteredLeads.map((l) => {
+                  const msg = l.message?.trim() || "";
+                  const msgLong = msg.length > 90 || msg.includes("\n");
+                  return (
+                    <tr
+                      key={l._id}
+                      className={cn(
+                        "border-b border-white/5 align-middle",
+                        (l.unreadReplyCount ?? 0) > 0 &&
+                          "bg-[color:var(--brand)]/[0.04]",
+                      )}
+                    >
+                      <td className="p-3">
+                        <div className="flex flex-col items-start gap-1.5">
+                          <TypePill type={l.type} />
+                          <ReplyBadge count={l.unreadReplyCount ?? 0} />
+                          <p className="text-[11px] text-zinc-500">
+                            {new Date(l.createdAt).toLocaleDateString("ro-RO", {
+                              day: "2-digit",
+                              month: "short",
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            })}
+                          </p>
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            className="h-7 gap-1.5 border-white/10 px-2 text-xs"
+                            onClick={() => openThread(l)}
+                          >
+                            <MessageSquare className="h-3 w-3" />
+                            Thread
+                          </Button>
+                        </div>
+                      </td>
+                      <td className="p-3">
+                        <p className="truncate font-medium text-white">
+                          {l.name}
+                        </p>
                         <a
-                          href={`tel:${l.phone}`}
-                          className="mt-0.5 block text-zinc-500 hover:text-white"
+                          href={`mailto:${l.email}`}
+                          className="block truncate text-zinc-400 hover:text-white"
+                          title={l.email}
                         >
-                          {l.phone}
+                          {l.email}
                         </a>
-                      ) : null}
-                      {l.company ? (
-                        <p className="text-zinc-500">{l.company}</p>
-                      ) : null}
-                    </td>
-                    <td className="max-w-sm p-3">
-                      <ServiceBlock lead={l} />
-                    </td>
-                    <td className="max-w-xs whitespace-pre-wrap p-3 text-zinc-400">
-                      {l.message || "—"}
-                    </td>
-                    <td className="p-3">
-                      <StatusPill status={l.status} />
-                      <div className="mt-2">
-                        <StatusActions
+                        {l.phone ? (
+                          <a
+                            href={`tel:${l.phone}`}
+                            className="mt-0.5 block truncate text-zinc-500 hover:text-white"
+                          >
+                            {l.phone}
+                          </a>
+                        ) : null}
+                      </td>
+                      <td className="p-3">
+                        <div className="line-clamp-2 text-sm">
+                          <ServiceBlock lead={l} />
+                        </div>
+                      </td>
+                      <td className="p-3">
+                        {msg ? (
+                          <button
+                            type="button"
+                            onClick={() => openThread(l)}
+                            title={msg}
+                            className="group w-full text-left"
+                          >
+                            <p className="line-clamp-2 whitespace-normal text-zinc-400 group-hover:text-zinc-200">
+                              {msg.replace(/\s+/g, " ")}
+                            </p>
+                            {msgLong ? (
+                              <span className="mt-1 inline-block text-[11px] text-[color:var(--brand)]">
+                                Vezi tot
+                              </span>
+                            ) : null}
+                          </button>
+                        ) : (
+                          <span className="text-zinc-600">—</span>
+                        )}
+                      </td>
+                      <td className="p-3">
+                        <StatusPill status={l.status} />
+                        <div className="mt-2">
+                          <StatusActions
+                            lead={l}
+                            token={token}
+                            onUpdate={onUpdate}
+                          />
+                        </div>
+                      </td>
+                      <td className="p-3">
+                        <GoogleAdsBlock
                           lead={l}
                           token={token}
-                          onUpdate={onUpdate}
+                          onRetry={onRetry}
                         />
-                      </div>
-                    </td>
-                    <td className="max-w-[10rem] p-3">
-                      <GoogleAdsBlock
-                        lead={l}
-                        token={token}
-                        onRetry={onRetry}
-                      />
-                    </td>
-                    <td className="p-3">
-                      <LeadActions
-                        onReply={() => openReply(l)}
-                        onDelete={() => void onDelete(l)}
-                        deleting={deletingId === l._id}
-                      />
-                    </td>
-                  </tr>
-                ))}
+                      </td>
+                      <td className="p-3">
+                        <LeadActions
+                          onReply={() => openReply(l)}
+                          onDelete={() => void onDelete(l)}
+                          deleting={deletingId === l._id}
+                        />
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
         </>
       )}
+
+      <ThreadModal
+        lead={threadLead}
+        token={token}
+        open={Boolean(threadLead)}
+        onClose={closeThread}
+        onReply={() => {
+          if (!threadLead) return;
+          const lead = threadLead;
+          closeThread();
+          openReply(lead);
+        }}
+      />
 
       <ReplyModal
         lead={replyLead}
