@@ -1,6 +1,16 @@
 import { Resend } from "resend";
+import {
+  extractEmailAddress,
+  resolveReplyToAddress,
+} from "@/lib/email/reply-helpers";
 
 export type EmailFolder = "inbox" | "sent";
+
+export {
+  extractEmailAddress,
+  replySubjectFor,
+  resolveReplyToAddress,
+} from "@/lib/email/reply-helpers";
 
 export type AdminEmailListItem = {
   id: string;
@@ -216,4 +226,127 @@ export async function getAdminEmailAttachment(input: {
       expires_at: data.expires_at,
     },
   };
+}
+
+function fromAddress(): string {
+  return process.env.RESEND_FROM_EMAIL?.trim() || "ZeroBug <contact@zerobug.ro>";
+}
+
+function inboxAddress(): string {
+  return process.env.LEADS_INBOX_EMAIL?.trim() || "contact@zerobug.ro";
+}
+
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+function plainToHtml(body: string): string {
+  return escapeHtml(body).replace(/\n/g, "<br/>");
+}
+
+export async function sendAdminEmailReply(input: {
+  emailId: string;
+  folder: EmailFolder;
+  subject: string;
+  body: string;
+  to?: string;
+}): Promise<
+  | { ok: true; id: string; to: string; subject: string }
+  | { ok: false; error: string }
+> {
+  const resend = getResend();
+  if (!resend) {
+    return { ok: false, error: "RESEND_API_KEY lipsește" };
+  }
+
+  const subject = input.subject.replace(/[\r\n\0]/g, " ").trim().slice(0, 200);
+  const body = input.body.trim().slice(0, 8000);
+  if (subject.length < 2) {
+    return { ok: false, error: "Subiect invalid" };
+  }
+  if (body.length < 2) {
+    return { ok: false, error: "Mesajul e prea scurt" };
+  }
+
+  const original = await getAdminEmail({
+    id: input.emailId,
+    folder: input.folder,
+  });
+  if (!original.ok) {
+    return { ok: false, error: original.error };
+  }
+
+  const to =
+    (input.to ? extractEmailAddress(input.to) : null) ??
+    resolveReplyToAddress(original.email);
+  if (!to) {
+    return { ok: false, error: "Nu am putut determina destinatarul" };
+  }
+
+  const from = fromAddress();
+  const replyTo = inboxAddress();
+  const quoted =
+    original.email.text?.trim() ||
+    (original.email.html
+      ? original.email.html
+          .replace(/<style[\s\S]*?<\/style>/gi, " ")
+          .replace(/<script[\s\S]*?<\/script>/gi, " ")
+          .replace(/<br\s*\/?>/gi, "\n")
+          .replace(/<\/p>/gi, "\n")
+          .replace(/<[^>]+>/g, " ")
+          .replace(/&nbsp;/g, " ")
+          .replace(/[ \t]+\n/g, "\n")
+          .replace(/\n{3,}/g, "\n\n")
+          .trim()
+      : "");
+
+  const quoteBlock = quoted
+    ? `\n\n---\nPe ${original.email.created_at}, ${original.email.from} a scris:\n${quoted.slice(0, 4000)}`
+    : "";
+
+  const text = `${body}${quoteBlock}`;
+  const html = `
+    <div style="font-family:-apple-system,BlinkMacSystemFont,Segoe UI,sans-serif;max-width:560px;font-size:15px;line-height:1.55;color:#111">
+      <div style="margin:0 0 20px">${plainToHtml(body)}</div>
+      ${
+        quoted
+          ? `<blockquote style="margin:24px 0 0;padding:12px 0 0 14px;border-left:3px solid #ddd;color:#555;font-size:13px;line-height:1.5">
+              <p style="margin:0 0 8px;color:#888;font-size:12px">Pe ${escapeHtml(original.email.created_at)}, ${escapeHtml(original.email.from)} a scris:</p>
+              <div>${plainToHtml(quoted.slice(0, 4000))}</div>
+            </blockquote>`
+          : ""
+      }
+      <p style="margin:24px 0 0;color:#888;font-size:12px">Trimis din ZeroBug Admin</p>
+    </div>
+  `;
+
+  try {
+    const { data, error } = await resend.emails.send({
+      from,
+      to,
+      subject,
+      html,
+      text,
+      replyTo,
+    });
+    if (error) {
+      return {
+        ok: false,
+        error: error.message || "Trimiterea a eșuat",
+      };
+    }
+    if (!data?.id) {
+      return { ok: false, error: "Resend nu a returnat un ID" };
+    }
+    return { ok: true, id: data.id, to, subject };
+  } catch (err) {
+    return {
+      ok: false,
+      error: err instanceof Error ? err.message : "Trimiterea a eșuat",
+    };
+  }
 }
