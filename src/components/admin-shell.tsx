@@ -55,9 +55,11 @@ type GitStatus = {
 function NavLinks({
   pathname,
   onNavigate,
+  leadUnread = 0,
 }: {
   pathname: string;
   onNavigate?: () => void;
+  leadUnread?: number;
 }) {
   return (
     <nav className="relative z-10 flex-1 space-y-0.5 overflow-y-auto">
@@ -67,6 +69,8 @@ function NavLinks({
             ? pathname === "/admin"
             : pathname.startsWith(item.href);
         const Icon = item.icon;
+        const showBadge =
+          item.href === "/admin/lead-uri" && leadUnread > 0;
         return (
           <Link
             key={item.href}
@@ -80,7 +84,12 @@ function NavLinks({
             )}
           >
             <Icon className="h-4 w-4 shrink-0 opacity-80" />
-            {item.label}
+            <span className="min-w-0 flex-1 truncate">{item.label}</span>
+            {showBadge ? (
+              <span className="inline-flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full bg-[color:var(--brand)] px-1.5 text-[10px] font-semibold text-zinc-950">
+                {leadUnread > 99 ? "99+" : leadUnread}
+              </span>
+            ) : null}
           </Link>
         );
       })}
@@ -107,6 +116,8 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
   const token = useAdminSessionToken();
   const { clear: clearAdminSession } = useAdminSession();
   const issuer = useQuery(api.settings.getIssuer, withAdminToken(token));
+  const leadUnread =
+    useQuery(api.leadMessages.unreadTotal, withAdminToken(token)) ?? 0;
   const [gitStatus, setGitStatus] = useState<GitStatus | null>(null);
   const [pushing, setPushing] = useState(false);
   const [pushMsg, setPushMsg] = useState<string | null>(null);
@@ -210,7 +221,11 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top,_rgba(34,197,94,0.08),_transparent_55%)]" />
       <SidebarBrand onNavigate={onNavigate} />
       <div className="relative z-10 mt-8 flex min-h-0 flex-1 flex-col">
-        <NavLinks pathname={pathname} onNavigate={onNavigate} />
+        <NavLinks
+          pathname={pathname}
+          onNavigate={onNavigate}
+          leadUnread={leadUnread}
+        />
       </div>
       <button
         type="button"
@@ -272,6 +287,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
             <NavLinks
               pathname={pathname}
               onNavigate={() => setMobileNavOpen(false)}
+              leadUnread={leadUnread}
             />
           </div>
           <button
@@ -294,11 +310,14 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
           <button
             type="button"
             onClick={() => setMobileNavOpen(true)}
-            className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-white/10 text-zinc-200 hover:bg-white/[0.04]"
+            className="relative inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-white/10 text-zinc-200 hover:bg-white/[0.04]"
             aria-label="Deschide meniul"
             aria-expanded={mobileNavOpen}
           >
             <Menu className="h-5 w-5" />
+            {leadUnread > 0 ? (
+              <span className="absolute -right-1 -top-1 h-2.5 w-2.5 rounded-full bg-[color:var(--brand)] ring-2 ring-[#070709]" />
+            ) : null}
           </button>
           <div className="min-w-0 flex-1">
             <p className="truncate text-sm font-medium text-white">

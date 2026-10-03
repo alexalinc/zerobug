@@ -307,8 +307,8 @@ export const sendEmailOnly = internalAction({
     });
     if (!invoice?.company) throw new Error("Invoice not found");
 
-    // Hardcoded verified domain — do not fall back to zerobug.ro
-    const from = "ZeroBug <contact@mercana.ro>";
+    const from =
+      process.env.RESEND_FROM_EMAIL || "ZeroBug <contact@zerobug.ro>";
     const apiKey = process.env.RESEND_API_KEY;
 
     if (!apiKey) {
@@ -391,7 +391,8 @@ export const sendAccountingEmail = internalAction({
     ctx,
     args,
   ): Promise<{ sent: number; to: string }> => {
-    const from = "ZeroBug <contact@mercana.ro>";
+    const from =
+      process.env.RESEND_FROM_EMAIL || "ZeroBug <contact@zerobug.ro>";
     const apiKey = process.env.RESEND_API_KEY;
     const invoices: Array<{
       _id: Id<"invoices">;

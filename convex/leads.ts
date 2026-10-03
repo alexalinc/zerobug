@@ -1,5 +1,10 @@
 import { v } from "convex/values";
-import { mutation, query } from "./_generated/server";
+import {
+  internalMutation,
+  internalQuery,
+  mutation,
+  query,
+} from "./_generated/server";
 import { internal } from "./_generated/api";
 import { requireAdminSession } from "./lib/adminGate";
 import { requireLeadFormToken } from "./lib/formToken";
@@ -167,23 +172,21 @@ export const create = mutation({
       createdAt: Date.now(),
     });
 
-    if (args.type !== "service_quote") {
-      await ctx.scheduler.runAfter(0, internal.leadsActions.notifyLeadEmail, {
-        type: args.type,
-        name,
-        email,
-        phone: args.phone,
-        company: args.company,
-        message: args.message,
-        serviceCategory: args.serviceCategory,
-        serviceName: args.serviceName,
-        planKey: args.planKey,
-        complexity: args.complexity,
-        addons: args.addons,
-        budget: args.budget,
-        quoteDetails: args.quoteDetails,
-      });
-    }
+    await ctx.scheduler.runAfter(0, internal.leadsActions.notifyLeadEmail, {
+      type: args.type,
+      name,
+      email,
+      phone: args.phone,
+      company: args.company,
+      message: args.message,
+      serviceCategory: args.serviceCategory,
+      serviceName: args.serviceName,
+      planKey: args.planKey,
+      complexity: args.complexity,
+      addons: args.addons,
+      budget: args.budget,
+      quoteDetails: args.quoteDetails,
+    });
 
     if (syncReady && consented) {
       await ctx.scheduler.runAfter(
@@ -221,6 +224,72 @@ export const updateStatus = mutation({
   handler: async (ctx, args) => {
     await requireAdminSession(args.sessionToken);
     await ctx.db.patch(args.id, { status: args.status });
+    return null;
+  },
+});
+
+export const remove = mutation({
+  args: {
+    sessionToken: v.string(),
+    id: v.id("leads"),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    await requireAdminSession(args.sessionToken);
+    const lead = await ctx.db.get(args.id);
+    if (!lead) throw new Error("Cererea nu există");
+    const messages = await ctx.db
+      .query("leadMessages")
+      .withIndex("by_lead_created", (q) => q.eq("leadId", args.id))
+      .take(200);
+    for (const m of messages) {
+      await ctx.db.delete(m._id);
+    }
+    await ctx.db.delete(args.id);
+    return null;
+  },
+});
+
+export const getByIdInternal = internalQuery({
+  args: { id: v.id("leads") },
+  returns: v.union(
+    v.object({
+      _id: v.id("leads"),
+      type: v.string(),
+      name: v.string(),
+      email: v.string(),
+      phone: v.optional(v.string()),
+      company: v.optional(v.string()),
+      message: v.optional(v.string()),
+      status: v.string(),
+    }),
+    v.null(),
+  ),
+  handler: async (ctx, args) => {
+    const lead = await ctx.db.get(args.id);
+    if (!lead) return null;
+    return {
+      _id: lead._id,
+      type: lead.type,
+      name: lead.name,
+      email: lead.email,
+      phone: lead.phone,
+      company: lead.company,
+      message: lead.message,
+      status: lead.status,
+    };
+  },
+});
+
+export const markContactedInternal = internalMutation({
+  args: { id: v.id("leads") },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const lead = await ctx.db.get(args.id);
+    if (!lead) return null;
+    if (lead.status === "new") {
+      await ctx.db.patch(args.id, { status: "contacted" });
+    }
     return null;
   },
 });

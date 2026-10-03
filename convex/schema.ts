@@ -156,12 +156,30 @@ export default defineSchema({
     googleAdsSyncedAt: v.optional(v.number()),
     googleAdsError: v.optional(v.string()),
     googleAdsRequestId: v.optional(v.string()),
+    /** Inbound email replies not yet opened in admin */
+    unreadReplyCount: v.optional(v.number()),
+    lastInboundAt: v.optional(v.number()),
     createdAt: v.number(),
   })
     .index("by_status", ["status"])
     .index("by_type", ["type"])
     .index("by_created", ["createdAt"])
     .index("by_email", ["email"]),
+
+  /** Outbound admin replies + inbound client replies linked to a lead */
+  leadMessages: defineTable({
+    leadId: v.id("leads"),
+    direction: v.union(v.literal("outbound"), v.literal("inbound")),
+    subject: v.string(),
+    bodyText: v.string(),
+    fromEmail: v.string(),
+    toEmail: v.string(),
+    resendEmailId: v.optional(v.string()),
+    createdAt: v.number(),
+    readAt: v.optional(v.number()),
+  })
+    .index("by_lead_created", ["leadId", "createdAt"])
+    .index("by_resend", ["resendEmailId"]),
 
   /** OAuth + destination for Google Ads Data Manager conversion uploads */
   googleAdsSettings: defineTable({

@@ -734,7 +734,8 @@ function SetariPageInner() {
         <p className="font-medium text-zinc-300">Env necesare</p>
         <code className="block text-xs text-zinc-500 whitespace-pre-wrap">
           STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET, RESEND_API_KEY,
-          RESEND_FROM_EMAIL, ADMIN_USERNAME, ADMIN_PASSWORD, ADMIN_SESSION_SECRET,
+          RESEND_FROM_EMAIL, RESEND_WEBHOOK_SECRET, LEADS_INBOX_EMAIL,
+          ADMIN_USERNAME, ADMIN_PASSWORD, ADMIN_SESSION_SECRET,
           NEXT_PUBLIC_CONVEX_URL
           {"\n"}
           GOOGLE_OAUTH_CLIENT_ID, GOOGLE_OAUTH_CLIENT_SECRET,

@@ -16,6 +16,7 @@ import type * as googleAdsActions from "../googleAdsActions.js";
 import type * as invoices from "../invoices.js";
 import type * as invoicesActions from "../invoicesActions.js";
 import type * as invoicesBilling from "../invoicesBilling.js";
+import type * as leadMessages from "../leadMessages.js";
 import type * as leads from "../leads.js";
 import type * as leadsActions from "../leadsActions.js";
 import type * as lib_adminGate from "../lib/adminGate.js";
@@ -43,6 +44,7 @@ declare const fullApi: ApiFromModules<{
   invoices: typeof invoices;
   invoicesActions: typeof invoicesActions;
   invoicesBilling: typeof invoicesBilling;
+  leadMessages: typeof leadMessages;
   leads: typeof leads;
   leadsActions: typeof leadsActions;
   "lib/adminGate": typeof lib_adminGate;
