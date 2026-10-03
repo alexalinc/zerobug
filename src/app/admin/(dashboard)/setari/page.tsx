@@ -307,9 +307,11 @@ function SetariPageInner() {
   }
 
   return (
-    <div className="space-y-8 max-w-2xl">
+    <div className="max-w-2xl space-y-6 sm:space-y-8">
       <div>
-        <h1 className="text-3xl font-semibold tracking-tight">Setări</h1>
+        <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
+          Setări
+        </h1>
         <p className="mt-2 text-sm text-zinc-400">
           Date emitent, serie și număr factură. Contabilitatea primește copie
           BCC la fiecare factură (inclusiv regenerarea din 1 ale lunii).
@@ -318,7 +320,7 @@ function SetariPageInner() {
 
       <form
         onSubmit={onSave}
-        className="space-y-4 rounded-2xl border border-white/[0.08] bg-white/[0.03] p-5"
+        className="space-y-4 rounded-2xl border border-white/[0.08] bg-white/[0.03] p-4 sm:p-5"
       >
         <p className="text-sm font-medium text-white">Emitent factură</p>
         {(

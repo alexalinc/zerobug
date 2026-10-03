@@ -54,9 +54,11 @@ export default function AdminOverviewPage() {
   const chartData = stats?.byMonth ?? [];
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6 sm:space-y-8">
       <div>
-        <h1 className="text-3xl font-semibold tracking-tight">Overview</h1>
+        <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
+          Overview
+        </h1>
         <p className="mt-2 text-sm text-zinc-400">
           Facturare, firme și venituri — ZeroBug Admin.
         </p>

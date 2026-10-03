@@ -125,9 +125,11 @@ export default function FirmePage() {
   }
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6 sm:space-y-8">
       <div>
-        <h1 className="text-3xl font-semibold tracking-tight">Firme</h1>
+        <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
+          Firme
+        </h1>
         <p className="mt-2 text-sm text-zinc-400">
           Date client, sumă lunară, TVA și textul de pe factură.
         </p>
@@ -135,9 +137,9 @@ export default function FirmePage() {
 
       <form
         onSubmit={onSubmit}
-        className="grid gap-4 rounded-2xl border border-white/[0.08] bg-white/[0.03] p-5 md:grid-cols-2"
+        className="grid gap-4 rounded-2xl border border-white/[0.08] bg-white/[0.03] p-4 sm:p-5 md:grid-cols-2"
       >
-        <div className="md:col-span-2 flex items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center justify-between gap-3 md:col-span-2">
           <p className="text-sm font-medium text-white">
             {editingId ? "Editează firma" : "Adaugă firmă"}
           </p>
@@ -286,8 +288,8 @@ export default function FirmePage() {
         </Button>
       </form>
 
-      <div className="overflow-x-auto rounded-2xl border border-white/[0.08]">
-        <table className="w-full text-sm">
+      <div className="-mx-4 overflow-x-auto border-y border-white/[0.08] sm:mx-0 sm:rounded-2xl sm:border">
+        <table className="w-full min-w-[720px] text-sm">
           <thead className="border-b border-white/10 text-left text-zinc-500">
             <tr>
               <th className="p-3 font-medium">Firmă</th>

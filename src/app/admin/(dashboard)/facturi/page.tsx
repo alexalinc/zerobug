@@ -334,9 +334,9 @@ export default function FacturiPage() {
   const isSuccessBanner = error?.startsWith("Trimis la contabilitate");
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6 sm:space-y-8">
       {/* Hero */}
-      <section className="relative overflow-hidden rounded-3xl border border-white/[0.08] bg-[linear-gradient(135deg,rgba(255,255,255,0.06)_0%,rgba(255,255,255,0.02)_40%,transparent_100%)] p-6 md:p-8">
+      <section className="relative overflow-hidden rounded-3xl border border-white/[0.08] bg-[linear-gradient(135deg,rgba(255,255,255,0.06)_0%,rgba(255,255,255,0.02)_40%,transparent_100%)] p-4 sm:p-6 md:p-8">
         <div
           aria-hidden
           className="pointer-events-none absolute -right-16 -top-20 h-56 w-56 rounded-full bg-[color:var(--brand)]/15 blur-3xl"
@@ -352,7 +352,7 @@ export default function FacturiPage() {
               <FileText className="size-3.5 text-[color:var(--brand)]" />
               Billing
             </div>
-            <h1 className="mt-4 text-3xl font-semibold tracking-tight text-white md:text-4xl">
+            <h1 className="mt-4 text-2xl font-semibold tracking-tight text-white sm:text-3xl md:text-4xl">
               Facturi
             </h1>
             <p className="mt-2 text-sm leading-relaxed text-zinc-400">
@@ -365,13 +365,13 @@ export default function FacturiPage() {
             </p>
           </div>
 
-          <div className="flex flex-wrap items-center gap-3">
-            <div className="min-w-[160px] rounded-2xl border border-white/10 bg-black/30 px-4 py-3 backdrop-blur-sm">
+          <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row sm:flex-wrap sm:items-center">
+            <div className="min-w-0 flex-1 rounded-2xl border border-white/10 bg-black/30 px-4 py-3 backdrop-blur-sm sm:min-w-[160px] sm:flex-none">
               <div className="flex items-center gap-1.5 text-[11px] uppercase tracking-[0.14em] text-zinc-500">
                 <Hash className="size-3.5" />
                 Următorul nr.
               </div>
-              <p className="mt-1.5 font-semibold tracking-tight text-[color:var(--brand)] tabular-nums text-lg">
+              <p className="mt-1.5 text-lg font-semibold tracking-tight text-[color:var(--brand)] tabular-nums">
                 {nextNumber?.formatted ?? "—"}
               </p>
               <p className="mt-0.5 text-[11px] text-zinc-600">
@@ -381,7 +381,7 @@ export default function FacturiPage() {
             <Button
               type="button"
               onClick={() => setShowGenerate((v) => !v)}
-              className="h-11 gap-2 px-4"
+              className="h-11 w-full gap-2 px-4 sm:w-auto"
             >
               {showGenerate ? (
                 <>
@@ -611,8 +611,8 @@ export default function FacturiPage() {
             </div>
           </div>
 
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[960px] text-sm">
+          <div className="-mx-px overflow-x-auto">
+            <table className="w-full min-w-[720px] text-sm md:min-w-[960px]">
               <thead>
                 <tr className="border-b border-white/[0.06] text-left text-[11px] uppercase tracking-[0.12em] text-zinc-500">
                   <th className="w-12 px-4 py-3">

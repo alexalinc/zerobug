@@ -42,9 +42,9 @@ export default function LeaduriPage() {
   const retryGoogleAds = useMutation(api.googleAds.retryGoogleAdsSync);
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6 sm:space-y-8">
       <div>
-        <h1 className="text-3xl font-semibold tracking-tight">
+        <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
           Cereri ofertă
         </h1>
         <p className="mt-2 text-sm text-zinc-400">
@@ -53,8 +53,8 @@ export default function LeaduriPage() {
           conversiei.
         </p>
       </div>
-      <div className="overflow-x-auto border border-white/10">
-        <table className="w-full text-sm">
+      <div className="-mx-4 overflow-x-auto border-y border-white/10 sm:mx-0 sm:rounded-2xl sm:border">
+        <table className="w-full min-w-[720px] text-sm">
           <thead className="border-b border-white/10 text-left text-zinc-400">
             <tr>
               <th className="p-3">Tip</th>
@@ -210,24 +210,26 @@ export default function LeaduriPage() {
                       <span className="text-zinc-600">—</span>
                     )}
                   </td>
-                  <td className="space-x-1 p-3 text-right">
-                    {(["contacted", "won", "lost"] as const).map((s) => (
-                      <Button
-                        key={s}
-                        size="sm"
-                        variant="outline"
-                        onClick={() =>
-                          token &&
-                          updateStatus({
-                            sessionToken: token,
-                            id: l._id,
-                            status: s,
-                          })
-                        }
-                      >
-                        {s}
-                      </Button>
-                    ))}
+                  <td className="p-3">
+                    <div className="flex flex-wrap justify-end gap-1">
+                      {(["contacted", "won", "lost"] as const).map((s) => (
+                        <Button
+                          key={s}
+                          size="sm"
+                          variant="outline"
+                          onClick={() =>
+                            token &&
+                            updateStatus({
+                              sessionToken: token,
+                              id: l._id,
+                              status: s,
+                            })
+                          }
+                        >
+                          {s}
+                        </Button>
+                      ))}
+                    </div>
                   </td>
                 </tr>
               ),

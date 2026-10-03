@@ -94,17 +94,19 @@ export default function StatisticiPage() {
   const loading = !data;
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6 sm:space-y-8">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h1 className="text-3xl font-semibold tracking-tight">Statistici</h1>
+          <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
+            Statistici
+          </h1>
           <p className="mt-2 max-w-2xl text-sm text-zinc-400">
             Trafic pe surse (Google Ads, organic, AI, social…), pagini vizitate,
             unde ies vizitatorii și funnel-ul cererilor de ofertă — unde se
             blochează și dacă formularul pare prea complex.
           </p>
         </div>
-        <div className="flex gap-1 rounded-xl border border-white/10 p-1">
+        <div className="inline-flex w-fit gap-1 rounded-xl border border-white/10 p-1">
           {[7, 30, 90].map((d) => (
             <button
               key={d}

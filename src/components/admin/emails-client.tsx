@@ -13,6 +13,7 @@ import {
   Download,
   ExternalLink,
   Send,
+  ArrowLeft,
 } from "lucide-react";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -288,13 +289,15 @@ export function AdminEmailsClient({ view }: { view: EmailsView }) {
     setTimeout(() => setFlash(null), 2500);
   }
 
+  const showDetailPane = Boolean(selectedId);
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <div className="flex items-center gap-3">
-            <Mail className="h-7 w-7 text-[color:var(--brand)]" />
-            <h1 className="text-3xl font-semibold tracking-tight text-white">
+            <Mail className="h-6 w-6 shrink-0 text-[color:var(--brand)] sm:h-7 sm:w-7" />
+            <h1 className="text-2xl font-semibold tracking-tight text-white sm:text-3xl">
               Emails
             </h1>
           </div>
@@ -369,7 +372,12 @@ export function AdminEmailsClient({ view }: { view: EmailsView }) {
       ) : null}
 
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)]">
-        <div className="overflow-hidden rounded-2xl border border-white/[0.08] bg-white/[0.02]">
+        <div
+          className={cn(
+            "overflow-hidden rounded-2xl border border-white/[0.08] bg-white/[0.02]",
+            showDetailPane && "hidden lg:block",
+          )}
+        >
           {loading ? (
             <div className="flex items-center justify-center gap-2 py-16 text-sm text-zinc-500">
               <Loader2 className="h-4 w-4 animate-spin" />
@@ -456,25 +464,79 @@ export function AdminEmailsClient({ view }: { view: EmailsView }) {
           ) : null}
         </div>
 
-        <div className="min-h-[320px] overflow-hidden rounded-2xl border border-white/[0.08] bg-white/[0.02]">
+        <div
+          className={cn(
+            "min-h-[320px] overflow-hidden rounded-2xl border border-white/[0.08] bg-white/[0.02]",
+            !showDetailPane && "hidden lg:block",
+          )}
+        >
           {!selectedId ? (
             <div className="flex h-full min-h-[320px] items-center justify-center px-6 text-center text-sm text-zinc-500">
               Selectează un email pentru a vedea conținutul.
             </div>
           ) : detailLoading ? (
-            <div className="flex min-h-[320px] items-center justify-center gap-2 text-sm text-zinc-500">
-              <Loader2 className="h-4 w-4 animate-spin" />
-              Se deschide emailul…
+            <div className="flex min-h-[320px] flex-col">
+              <div className="border-b border-white/[0.06] p-3 lg:hidden">
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="ghost"
+                  className="gap-1.5 text-zinc-300"
+                  onClick={() => {
+                    setSelectedId(null);
+                    setDetail(null);
+                  }}
+                >
+                  <ArrowLeft className="h-4 w-4" />
+                  Înapoi la listă
+                </Button>
+              </div>
+              <div className="flex flex-1 items-center justify-center gap-2 text-sm text-zinc-500">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Se deschide emailul…
+              </div>
             </div>
           ) : !detail ? (
-            <div className="flex min-h-[320px] items-center justify-center px-6 text-center text-sm text-zinc-500">
-              Nu am putut încărca conținutul.
+            <div className="flex min-h-[320px] flex-col">
+              <div className="border-b border-white/[0.06] p-3 lg:hidden">
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="ghost"
+                  className="gap-1.5 text-zinc-300"
+                  onClick={() => {
+                    setSelectedId(null);
+                    setDetail(null);
+                  }}
+                >
+                  <ArrowLeft className="h-4 w-4" />
+                  Înapoi la listă
+                </Button>
+              </div>
+              <div className="flex flex-1 items-center justify-center px-6 text-center text-sm text-zinc-500">
+                Nu am putut încărca conținutul.
+              </div>
             </div>
           ) : (
             <div className="flex h-full flex-col">
               <div className="space-y-3 border-b border-white/[0.06] p-4">
+                <div className="lg:hidden">
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="ghost"
+                    className="-ml-2 gap-1.5 text-zinc-300"
+                    onClick={() => {
+                      setSelectedId(null);
+                      setDetail(null);
+                    }}
+                  >
+                    <ArrowLeft className="h-4 w-4" />
+                    Înapoi la listă
+                  </Button>
+                </div>
                 <div className="flex flex-wrap items-start justify-between gap-3">
-                  <h2 className="text-lg font-semibold leading-snug text-white">
+                  <h2 className="text-base font-semibold leading-snug text-white sm:text-lg">
                     {detail.subject}
                   </h2>
                   <div className="flex flex-wrap gap-2">

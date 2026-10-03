@@ -104,10 +104,12 @@ export default function SeoAdminPage() {
     : "Încă nu a fost regenerat manual";
 
   return (
-    <div className="space-y-8">
-      <div className="flex flex-wrap items-start justify-between gap-4">
+    <div className="space-y-6 sm:space-y-8">
+      <div className="flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-start sm:justify-between">
         <div>
-          <h1 className="text-3xl font-semibold tracking-tight">SEO</h1>
+          <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
+            SEO
+          </h1>
           <p className="mt-2 text-sm text-zinc-400">
             Sitemap (regenerare săptămânală), robots.txt și llms.txt pentru
             crawlere.
@@ -119,6 +121,7 @@ export default function SeoAdminPage() {
           disabled={regenerating}
           onClick={() => void onRegenerate()}
           title="Resetează robots + llms la template-ul din cod și invalidează cache-ul sitemap/robots/llms"
+          className="w-full sm:w-auto"
         >
           <RefreshCw
             className={`mr-2 h-4 w-4 ${regenerating ? "animate-spin" : ""}`}

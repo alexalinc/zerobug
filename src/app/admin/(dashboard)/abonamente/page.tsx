@@ -35,21 +35,21 @@ export default function AbonamentePage() {
   }
 
   return (
-    <div className="space-y-8">
-      <h1 className="text-3xl font-semibold tracking-tight">
+    <div className="space-y-6 sm:space-y-8">
+      <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
         Abonamente
       </h1>
 
       <form
         onSubmit={addManual}
-        className="flex flex-wrap gap-3 items-end border border-white/10 p-4"
+        className="flex flex-col gap-3 rounded-2xl border border-white/10 p-4 sm:flex-row sm:flex-wrap sm:items-end"
       >
-        <label className="text-sm space-y-1">
+        <label className="w-full space-y-1 text-sm sm:w-auto sm:min-w-[12rem] sm:flex-1">
           <span className="text-zinc-400">Firmă</span>
           <select
             name="companyId"
             required
-            className="block bg-zinc-900 border border-white/10 rounded-md px-3 py-2"
+            className="block w-full rounded-md border border-white/10 bg-zinc-900 px-3 py-2"
           >
             <option value="">Selectează</option>
             {(companies ?? []).map((c) => (
@@ -59,12 +59,12 @@ export default function AbonamentePage() {
             ))}
           </select>
         </label>
-        <label className="text-sm space-y-1">
+        <label className="w-full space-y-1 text-sm sm:w-auto sm:min-w-[12rem] sm:flex-1">
           <span className="text-zinc-400">Plan</span>
           <select
             name="planId"
             required
-            className="block bg-zinc-900 border border-white/10 rounded-md px-3 py-2"
+            className="block w-full rounded-md border border-white/10 bg-zinc-900 px-3 py-2"
           >
             <option value="">Selectează</option>
             {(plans ?? []).map((p) => (
@@ -74,11 +74,13 @@ export default function AbonamentePage() {
             ))}
           </select>
         </label>
-        <Button type="submit">Abonament manual</Button>
+        <Button type="submit" className="w-full sm:w-auto">
+          Abonament manual
+        </Button>
       </form>
 
-      <div className="overflow-x-auto border border-white/10">
-        <table className="w-full text-sm">
+      <div className="-mx-4 overflow-x-auto border-y border-white/10 sm:mx-0 sm:rounded-2xl sm:border">
+        <table className="w-full min-w-[560px] text-sm">
           <thead className="text-left text-zinc-400 border-b border-white/10">
             <tr>
               <th className="p-3">Firmă</th>
@@ -95,34 +97,36 @@ export default function AbonamentePage() {
                 <td className="p-3">{s.plan?.name ?? "—"}</td>
                 <td className="p-3">{s.billingMode}</td>
                 <td className="p-3">{s.status}</td>
-                <td className="p-3 text-right space-x-2">
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() =>
-                      token &&
-                      updateStatus({
-                        sessionToken: token,
-                        id: s._id,
-                        status:
-                          s.status === "canceled" ? "manual" : "canceled",
-                      })
-                    }
-                  >
-                    {s.status === "canceled" ? "Reactivează" : "Anulează"}
-                  </Button>
-                  <Button
-                    size="sm"
-                    onClick={() =>
-                      token &&
-                      generate({
-                        sessionToken: token,
-                        subscriptionId: s._id,
-                      })
-                    }
-                  >
-                    Generează factură
-                  </Button>
+                <td className="p-3">
+                  <div className="flex flex-wrap justify-end gap-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() =>
+                        token &&
+                        updateStatus({
+                          sessionToken: token,
+                          id: s._id,
+                          status:
+                            s.status === "canceled" ? "manual" : "canceled",
+                        })
+                      }
+                    >
+                      {s.status === "canceled" ? "Reactivează" : "Anulează"}
+                    </Button>
+                    <Button
+                      size="sm"
+                      onClick={() =>
+                        token &&
+                        generate({
+                          sessionToken: token,
+                          subscriptionId: s._id,
+                        })
+                      }
+                    >
+                      Generează factură
+                    </Button>
+                  </div>
                 </td>
               </tr>
             ))}
