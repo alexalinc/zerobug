@@ -668,7 +668,7 @@ function LeadCard({
 }
 
 export default function LeaduriPage() {
-  const token = useAdminSessionToken();
+  const token = useAdminSessionToken() ?? null;
   const leads = useQuery(api.leads.list, withAdminToken(token)) as
     | LeadRow[]
     | undefined;

@@ -40,7 +40,7 @@ export async function POST(req: NextRequest) {
         "svix-id": req.headers.get("svix-id") ?? "",
         "svix-timestamp": req.headers.get("svix-timestamp") ?? "",
         "svix-signature": req.headers.get("svix-signature") ?? "",
-      }) as ResendReceivedEvent;
+      }) as unknown as ResendReceivedEvent;
     } catch (err) {
       console.error("Resend webhook signature error", err);
       return NextResponse.json({ error: "Invalid signature" }, { status: 400 });
