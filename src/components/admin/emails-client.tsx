@@ -404,13 +404,6 @@ export function AdminEmailsClient({ view }: { view: EmailsView }) {
               Emails
             </h1>
           </div>
-          <p className="mt-1 max-w-2xl text-sm text-zinc-500">
-            Inbox = emailuri primite (Resend Receiving). Trimise = notificări
-            lead / facturi. Pentru{" "}
-            <span className="text-zinc-300">contact@zerobug.ro</span>, activează
-            Receiving în Resend și forward din mailbox — fără a muta MX-ul
-            principal dacă ai deja mail pe domeniu.
-          </p>
         </div>
         <div className="flex flex-wrap gap-2">
           {view !== "trash" ? (
@@ -583,8 +576,8 @@ export function AdminEmailsClient({ view }: { view: EmailsView }) {
                 <Button
                   type="button"
                   size="sm"
-                  variant="ghost"
-                  className="gap-1.5 text-zinc-300"
+                  variant="outline"
+                  className="gap-1.5 border-white/10 bg-white/[0.06] text-zinc-200 hover:bg-white/[0.1] hover:text-white"
                   onClick={() => {
                     setSelectedId(null);
                     setDetail(null);
@@ -605,8 +598,8 @@ export function AdminEmailsClient({ view }: { view: EmailsView }) {
                 <Button
                   type="button"
                   size="sm"
-                  variant="ghost"
-                  className="gap-1.5 text-zinc-300"
+                  variant="outline"
+                  className="gap-1.5 border-white/10 bg-white/[0.06] text-zinc-200 hover:bg-white/[0.1] hover:text-white"
                   onClick={() => {
                     setSelectedId(null);
                     setDetail(null);
@@ -627,8 +620,8 @@ export function AdminEmailsClient({ view }: { view: EmailsView }) {
                   <Button
                     type="button"
                     size="sm"
-                    variant="ghost"
-                    className="-ml-2 gap-1.5 text-zinc-300"
+                    variant="outline"
+                    className="gap-1.5 border-white/10 bg-white/[0.06] text-zinc-200 hover:bg-white/[0.1] hover:text-white"
                     onClick={() => {
                       setSelectedId(null);
                       setDetail(null);
