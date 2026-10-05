@@ -62,7 +62,7 @@ function SetariPageInner() {
     invoiceSeries: "ZB",
     invoiceNextNumber: "1",
     brandName: "ZeroBug",
-    accountingEmail: "exactexpert@yahoo.com",
+    accountingEmail: "alexalincatrinoiu@gmail.com",
     githubRepoUrl: "",
     vercelDashboardUrl: "",
   });
@@ -122,7 +122,7 @@ function SetariPageInner() {
         invoiceNextNumber: String(issuer.invoiceNextNumber ?? 1),
         brandName: issuer.brandName,
         accountingEmail:
-          issuer.accountingEmail || "exactexpert@yahoo.com",
+          issuer.accountingEmail || "alexalincatrinoiu@gmail.com",
         githubRepoUrl: issuer.githubRepoUrl || "",
         vercelDashboardUrl: issuer.vercelDashboardUrl || "",
       });
@@ -359,8 +359,8 @@ function SetariPageInner() {
             />
             {key === "accountingEmail" ? (
               <p className="text-[11px] text-zinc-500">
-                Copie BCC la fiecare factură trimisă (ex.
-                exactexpert@yahoo.com).
+                Copie BCC la fiecare factură trimisă (automate +
+                manuale), ex. alexalincatrinoiu@gmail.com.
               </p>
             ) : null}
           </div>

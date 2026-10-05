@@ -320,6 +320,21 @@ export const sendEmailOnly = internalAction({
       return null;
     }
 
+    const issuer: { accountingEmail?: string } | null = await ctx.runQuery(
+      internal.settings.getIssuerInternal,
+      {},
+    );
+    const accountingEmail =
+      (typeof issuer?.accountingEmail === "string" &&
+        issuer.accountingEmail.trim()) ||
+      "alexalincatrinoiu@gmail.com";
+    const to = invoice.company.email.trim();
+    const bcc =
+      accountingEmail &&
+      accountingEmail.toLowerCase() !== to.toLowerCase()
+        ? accountingEmail
+        : undefined;
+
     try {
       const resend = new Resend(apiKey);
       let pdfBuffer: Buffer | undefined;
@@ -335,12 +350,14 @@ export const sendEmailOnly = internalAction({
       console.log("Sending invoice email", {
         invoiceId: args.invoiceId,
         from,
-        to: invoice.company.email,
+        to,
+        bcc,
       });
 
       const { data, error } = await resend.emails.send({
         from,
-        to: invoice.company.email,
+        to,
+        ...(bcc ? { bcc } : {}),
         subject: `Factura ${invoice.number} — ZeroBug`,
         html: `
           <p>Bună ziua,</p>
@@ -367,7 +384,7 @@ export const sendEmailOnly = internalAction({
         return null;
       }
 
-      console.log("Invoice email sent", { id: data?.id, from });
+      console.log("Invoice email sent", { id: data?.id, from, bcc });
       await ctx.runMutation(internal.invoices.markEmail, {
         invoiceId: args.invoiceId,
         emailStatus: "sent",
@@ -416,7 +433,7 @@ export const sendAccountingEmail = internalAction({
     const to: string =
       (typeof issuer?.accountingEmail === "string" &&
         issuer.accountingEmail.trim()) ||
-      "exactexpert@yahoo.com";
+      "alexalincatrinoiu@gmail.com";
 
     const ids = invoices.map((inv) => inv._id);
 

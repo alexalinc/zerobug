@@ -21,7 +21,7 @@ const issuerDefaults = {
   invoiceSeries: "ZB",
   invoiceNextNumber: 1,
   brandName: "ZeroBug",
-  accountingEmail: "exactexpert@yahoo.com",
+  accountingEmail: "alexalincatrinoiu@gmail.com",
   githubRepoUrl: "https://github.com/alexalinc/zerobug",
   vercelDashboardUrl: "",
 };
@@ -237,7 +237,11 @@ async function seedIssuerAndPlans(ctx: MutationCtx) {
       accountingEmail?: string;
       invoiceNextNumber?: number;
     } = {};
-    if (!existing.accountingEmail) {
+    // Migrate empty / previous accounting inbox to the current default.
+    if (
+      !existing.accountingEmail ||
+      existing.accountingEmail === "exactexpert@yahoo.com"
+    ) {
       patch.accountingEmail = issuerDefaults.accountingEmail;
     }
     if (existing.invoiceNextNumber == null) {
