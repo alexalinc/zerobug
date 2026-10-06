@@ -41,6 +41,11 @@ function SetariPageInner() {
     api.googleAds.getConnection,
     withAdminToken(token),
   );
+  const [gadsStatsNow] = useState(() => Date.now());
+  const gadsSyncStats = useQuery(
+    api.googleAds.getSyncStats,
+    withAdminToken(token, { days: 30, now: gadsStatsNow }),
+  );
   const updateGoogleConfig = useMutation(api.googleAds.updateConfig);
   const disconnectGoogle = useMutation(api.googleAds.disconnect);
   const listCampaigns = useAction(api.googleAdsActions.listCampaigns);
@@ -433,10 +438,10 @@ function SetariPageInner() {
           <p className="text-sm font-medium text-white">Google Ads</p>
           <p className="mt-1 text-xs text-zinc-500">
             Lead-urile (contact / ofertă / mentenanță) se trimit pe conversion
-            goal-ul selectat, cu valoare fixă{" "}
-            <strong className="text-zinc-300">20 RON</strong>, doar dacă
-            vizitatorul a acceptat cookie-uri marketing. Enhanced Conversions =
-            email + telefon hash.
+            goal-ul selectat, cu valoarea configurată mai jos (default 20 RON),
+            doar dacă vizitatorul a acceptat cookie-uri marketing. Enhanced
+            Conversions = email + telefon hash. Sub formular vezi răspunsul API
+            Google pentru fiecare conversie trimisă.
           </p>
         </div>
 
@@ -726,6 +731,108 @@ function SetariPageInner() {
                 <p className="text-sm text-red-400">{gadsError}</p>
               ) : null}
             </div>
+
+            {gadsSyncStats ? (
+              <div className="space-y-3 rounded-xl border border-white/10 bg-zinc-950/40 p-3">
+                <div>
+                  <p className="text-xs font-medium text-zinc-300">
+                    Conversii — ultimele 30 zile
+                  </p>
+                  <p className="mt-1 text-[11px] text-zinc-500">
+                    {gadsSyncStats.totals.sent} trimise OK ·{" "}
+                    {gadsSyncStats.totals.failed} eșuate ·{" "}
+                    {gadsSyncStats.totals.pending} pending ·{" "}
+                    {gadsSyncStats.totals.skipped} skipped ·{" "}
+                    {gadsSyncStats.totals.withAnyClickId} cu gclid/gbraid/wbraid
+                  </p>
+                </div>
+                {gadsSyncStats.recent.length > 0 ? (
+                  <ul className="max-h-80 space-y-2 overflow-y-auto">
+                    {gadsSyncStats.recent.map((row) => {
+                      const ok = row.googleAdsStatus === "sent";
+                      const failed = row.googleAdsStatus === "failed";
+                      return (
+                        <li
+                          key={row.leadId}
+                          className="rounded-lg border border-white/5 bg-black/20 p-2.5 text-xs"
+                        >
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <p className="font-medium text-zinc-200">
+                              {row.name}{" "}
+                              <span className="font-normal text-zinc-500">
+                                · {row.email}
+                              </span>
+                            </p>
+                            <span
+                              className={
+                                ok
+                                  ? "text-emerald-400"
+                                  : failed
+                                    ? "text-red-400"
+                                    : row.googleAdsStatus === "pending"
+                                      ? "text-amber-300"
+                                      : "text-zinc-500"
+                              }
+                            >
+                              {row.googleAdsStatus === "sent"
+                                ? "Succes"
+                                : row.googleAdsStatus === "failed"
+                                  ? "Eșuat"
+                                  : row.googleAdsStatus === "pending"
+                                    ? "Pending"
+                                    : row.googleAdsStatus === "skipped"
+                                      ? "Sărit"
+                                      : "—"}
+                              {row.googleAdsHttpStatus != null
+                                ? ` · HTTP ${row.googleAdsHttpStatus}`
+                                : ""}
+                            </span>
+                          </div>
+                          <p className="mt-1 text-[10px] text-zinc-500">
+                            {[
+                              row.gclid ? "gclid" : null,
+                              row.gbraid ? "gbraid" : null,
+                              row.wbraid ? "wbraid" : null,
+                            ]
+                              .filter(Boolean)
+                              .join(" · ") || "fără click ID"}
+                            {row.googleAdsRequestId
+                              ? ` · requestId ${row.googleAdsRequestId}`
+                              : ""}
+                          </p>
+                          {row.googleAdsError ? (
+                            <p className="mt-1 text-[11px] text-red-300/90">
+                              {row.googleAdsError}
+                            </p>
+                          ) : null}
+                          {row.googleAdsApiResponse ? (
+                            <div className="mt-1.5">
+                              <p className="text-[10px] uppercase tracking-wide text-zinc-600">
+                                Răspuns API Google
+                              </p>
+                              <pre className="mt-0.5 max-h-28 overflow-auto whitespace-pre-wrap break-all rounded border border-white/5 bg-zinc-950 p-2 text-[10px] leading-relaxed text-zinc-400">
+                                {row.googleAdsApiResponse}
+                              </pre>
+                            </div>
+                          ) : row.googleAdsStatus === "sent" ? (
+                            <p className="mt-1 text-[10px] text-zinc-600">
+                              Trimis înainte de logarea body-ului API — re-trimite
+                              lead-ul ca să vezi răspunsul complet.
+                            </p>
+                          ) : null}
+                        </li>
+                      );
+                    })}
+                  </ul>
+                ) : (
+                  <p className="text-[11px] text-zinc-500">
+                    Încă nu există încercări de sync. După un lead cu consent
+                    marketing, aici apare răspunsul Data Manager (requestId /
+                    eroare).
+                  </p>
+                )}
+              </div>
+            ) : null}
           </>
         ) : null}
       </form>

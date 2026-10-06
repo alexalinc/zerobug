@@ -15,6 +15,15 @@ const ADS_API = "https://googleads.googleapis.com/v25";
 /** Fixed conversion value for every lead (contact / quote / maintenance). */
 export const LEAD_CONVERSION_VALUE_RON = 20;
 
+const MAX_API_RESPONSE_CHARS = 2000;
+
+function truncateApiBody(text: string): string {
+  const trimmed = text.trim();
+  if (!trimmed) return "(gol)";
+  if (trimmed.length <= MAX_API_RESPONSE_CHARS) return trimmed;
+  return `${trimmed.slice(0, MAX_API_RESPONSE_CHARS)}…`;
+}
+
 function sha256Hex(value: string): string {
   return createHash("sha256").update(value, "utf8").digest("hex");
 }
@@ -367,6 +376,7 @@ export const uploadLeadConversion = internalAction({
       } catch {
         /* non-JSON body */
       }
+      const apiResponse = truncateApiBody(text || JSON.stringify({ ok: res.ok }));
 
       if (!res.ok) {
         const msg =
@@ -378,6 +388,8 @@ export const uploadLeadConversion = internalAction({
           leadId: args.leadId,
           googleAdsStatus: "failed",
           googleAdsError: msg,
+          googleAdsHttpStatus: res.status,
+          googleAdsApiResponse: apiResponse,
         });
         return null;
       }
@@ -387,6 +399,8 @@ export const uploadLeadConversion = internalAction({
         googleAdsStatus: "sent",
         googleAdsError: undefined,
         googleAdsRequestId: json.requestId,
+        googleAdsHttpStatus: res.status,
+        googleAdsApiResponse: apiResponse,
       });
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Upload eșuat";
@@ -395,6 +409,9 @@ export const uploadLeadConversion = internalAction({
         leadId: args.leadId,
         googleAdsStatus: "failed",
         googleAdsError: msg,
+        googleAdsApiResponse: truncateApiBody(
+          JSON.stringify({ exception: msg }),
+        ),
       });
     }
 

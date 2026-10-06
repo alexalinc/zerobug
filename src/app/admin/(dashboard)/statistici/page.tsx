@@ -83,6 +83,19 @@ function StatCard({
   );
 }
 
+const ADS_STATUS_LABEL: Record<string, string> = {
+  pending: "În așteptare",
+  sent: "Trimis OK",
+  skipped: "Sărit",
+  failed: "Eșuat",
+};
+
+function truncateId(value?: string, keep = 10) {
+  if (!value) return null;
+  if (value.length <= keep + 3) return value;
+  return `${value.slice(0, keep)}…`;
+}
+
 export default function StatisticiPage() {
   const token = useAdminSessionToken();
   const [days, setDays] = useState(30);
@@ -91,7 +104,12 @@ export default function StatisticiPage() {
     api.analytics.dashboard,
     withAdminToken(token, { days, now }),
   );
+  const gadsStats = useQuery(
+    api.googleAds.getSyncStats,
+    withAdminToken(token, { days, now }),
+  );
   const loading = !data;
+  const gadsLoading = !gadsStats;
 
   return (
     <div className="space-y-6 sm:space-y-8">
@@ -157,6 +175,163 @@ export default function StatisticiPage() {
               : `${data.totals.submitRate}% din cei care au început · ${data.totals.abandonRate}% abandon`
           }
         />
+      </div>
+
+      <div className="rounded-2xl border border-white/[0.08] bg-white/[0.03] p-5">
+        <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <h2 className="text-sm font-medium text-white">
+              Google Ads — lead-uri & conversii
+            </h2>
+            <p className="mt-1 text-xs text-zinc-500">
+              Click ID-uri capturate (gclid / gbraid / wbraid) și statusul
+              upload-ului Offline Conversion (Data Manager) pe lead-urile din
+              perioada selectată.
+            </p>
+          </div>
+          <a
+            href="/admin/lead-uri"
+            className="text-xs text-[color:var(--brand)] hover:underline"
+          >
+            Vezi lead-uri →
+          </a>
+        </div>
+
+        <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <StatCard
+            label="Lead-uri"
+            value={gadsLoading ? "—" : String(gadsStats.totals.leads)}
+            hint={
+              gadsLoading
+                ? undefined
+                : `${gadsStats.totals.withMarketingConsent} cu consent marketing`
+            }
+          />
+          <StatCard
+            label="Cu click ID"
+            value={gadsLoading ? "—" : String(gadsStats.totals.withAnyClickId)}
+            hint={
+              gadsLoading
+                ? undefined
+                : `gclid ${gadsStats.totals.withGclid} · gbraid ${gadsStats.totals.withGbraid} · wbraid ${gadsStats.totals.withWbraid}`
+            }
+          />
+          <StatCard
+            label="Conversii trimise"
+            value={gadsLoading ? "—" : String(gadsStats.totals.sent)}
+            hint={
+              gadsLoading
+                ? undefined
+                : `${gadsStats.totals.failed} eșuate · ${gadsStats.totals.pending} pending`
+            }
+          />
+          <StatCard
+            label="Sărite / fără sync"
+            value={
+              gadsLoading
+                ? "—"
+                : String(gadsStats.totals.skipped + gadsStats.totals.noSync)
+            }
+            hint={
+              gadsLoading
+                ? undefined
+                : `${gadsStats.totals.skipped} skipped · ${gadsStats.totals.noSync} fără sync`
+            }
+          />
+        </div>
+
+        <div className="mt-4 overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead className="border-b border-white/10 text-left text-zinc-400">
+              <tr>
+                <th className="p-2 font-medium">Lead</th>
+                <th className="p-2 font-medium">Click IDs</th>
+                <th className="p-2 font-medium">Status sync</th>
+                <th className="p-2 font-medium">Răspuns API</th>
+              </tr>
+            </thead>
+            <tbody>
+              {(gadsStats?.recent ?? []).map((row) => (
+                <tr key={row.leadId} className="border-b border-white/[0.04]">
+                  <td className="p-2 align-top">
+                    <p className="text-zinc-200">{row.name}</p>
+                    <p className="text-xs text-zinc-500">{row.email}</p>
+                  </td>
+                  <td className="p-2 align-top text-xs text-zinc-400">
+                    {(() => {
+                      const ids = [
+                        row.gclid ? `gclid ${truncateId(row.gclid)}` : null,
+                        row.gbraid ? `gbraid ${truncateId(row.gbraid)}` : null,
+                        row.wbraid ? `wbraid ${truncateId(row.wbraid)}` : null,
+                      ].filter((x): x is string => Boolean(x));
+                      return ids.length > 0 ? (
+                        ids.join(" · ")
+                      ) : (
+                        <span className="text-zinc-600">fără click ID</span>
+                      );
+                    })()}
+                  </td>
+                  <td className="p-2 align-top">
+                    <span
+                      className={cn(
+                        "text-xs font-medium",
+                        row.googleAdsStatus === "sent" && "text-emerald-400",
+                        row.googleAdsStatus === "failed" && "text-red-400",
+                        row.googleAdsStatus === "pending" && "text-amber-300",
+                        row.googleAdsStatus === "skipped" && "text-zinc-500",
+                      )}
+                    >
+                      {row.googleAdsStatus
+                        ? (ADS_STATUS_LABEL[row.googleAdsStatus] ??
+                          row.googleAdsStatus)
+                        : "—"}
+                    </span>
+                    {row.googleAdsHttpStatus != null ? (
+                      <p className="mt-0.5 text-[10px] text-zinc-500">
+                        HTTP {row.googleAdsHttpStatus}
+                      </p>
+                    ) : null}
+                  </td>
+                  <td className="p-2 align-top max-w-xs">
+                    {row.googleAdsRequestId ? (
+                      <p
+                        className="truncate text-[10px] text-zinc-500"
+                        title={row.googleAdsRequestId}
+                      >
+                        requestId: {truncateId(row.googleAdsRequestId, 16)}
+                      </p>
+                    ) : null}
+                    {row.googleAdsError ? (
+                      <p
+                        className="line-clamp-2 text-[10px] text-red-300/80"
+                        title={row.googleAdsError}
+                      >
+                        {row.googleAdsError}
+                      </p>
+                    ) : null}
+                    {row.googleAdsApiResponse ? (
+                      <pre
+                        className="mt-1 max-h-16 overflow-auto whitespace-pre-wrap break-all rounded bg-zinc-950/60 p-1.5 text-[10px] leading-snug text-zinc-500"
+                        title={row.googleAdsApiResponse}
+                      >
+                        {row.googleAdsApiResponse}
+                      </pre>
+                    ) : !row.googleAdsError && !row.googleAdsRequestId ? (
+                      <span className="text-[10px] text-zinc-600">—</span>
+                    ) : null}
+                  </td>
+                </tr>
+              ))}
+              {!gadsLoading && (gadsStats?.recent.length ?? 0) === 0 ? (
+                <tr>
+                  <td colSpan={4} className="p-4 text-center text-zinc-500">
+                    Niciun lead cu sync Google Ads în perioada selectată.
+                  </td>
+                </tr>
+              ) : null}
+            </tbody>
+          </table>
+        </div>
       </div>
 
       <div className="grid gap-4 lg:grid-cols-2">

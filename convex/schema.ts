@@ -156,6 +156,10 @@ export default defineSchema({
     googleAdsSyncedAt: v.optional(v.number()),
     googleAdsError: v.optional(v.string()),
     googleAdsRequestId: v.optional(v.string()),
+    /** HTTP status from Data Manager events:ingest */
+    googleAdsHttpStatus: v.optional(v.number()),
+    /** Truncated JSON/text body from Google Ads / Data Manager API */
+    googleAdsApiResponse: v.optional(v.string()),
     /** Inbound email replies not yet opened in admin */
     unreadReplyCount: v.optional(v.number()),
     lastInboundAt: v.optional(v.number()),

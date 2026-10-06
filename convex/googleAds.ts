@@ -195,6 +195,9 @@ export const retryGoogleAdsSync = mutation({
     await ctx.db.patch(args.leadId, {
       googleAdsStatus: "pending",
       googleAdsError: undefined,
+      googleAdsRequestId: undefined,
+      googleAdsHttpStatus: undefined,
+      googleAdsApiResponse: undefined,
     });
     await ctx.scheduler.runAfter(
       0,
@@ -252,17 +255,141 @@ export const patchLeadSyncInternal = internalMutation({
     googleAdsStatus: googleAdsStatusValidator,
     googleAdsError: v.optional(v.string()),
     googleAdsRequestId: v.optional(v.string()),
+    googleAdsHttpStatus: v.optional(v.number()),
+    googleAdsApiResponse: v.optional(v.string()),
   },
   returns: v.null(),
   handler: async (ctx, args) => {
     const synced =
-      args.googleAdsStatus === "sent" || args.googleAdsStatus === "skipped";
+      args.googleAdsStatus === "sent" ||
+      args.googleAdsStatus === "skipped" ||
+      args.googleAdsStatus === "failed";
     await ctx.db.patch(args.leadId, {
       googleAdsStatus: args.googleAdsStatus,
       googleAdsError: args.googleAdsError,
       googleAdsRequestId: args.googleAdsRequestId,
+      googleAdsHttpStatus: args.googleAdsHttpStatus,
+      googleAdsApiResponse: args.googleAdsApiResponse,
       ...(synced ? { googleAdsSyncedAt: Date.now() } : {}),
     });
     return null;
+  },
+});
+
+const syncRecentItem = v.object({
+  leadId: v.id("leads"),
+  name: v.string(),
+  email: v.string(),
+  createdAt: v.number(),
+  gclid: v.optional(v.string()),
+  gbraid: v.optional(v.string()),
+  wbraid: v.optional(v.string()),
+  marketingConsent: v.optional(v.boolean()),
+  googleAdsStatus: v.optional(googleAdsStatusValidator),
+  googleAdsSyncedAt: v.optional(v.number()),
+  googleAdsError: v.optional(v.string()),
+  googleAdsRequestId: v.optional(v.string()),
+  googleAdsHttpStatus: v.optional(v.number()),
+  googleAdsApiResponse: v.optional(v.string()),
+});
+
+/** Aggregates + recent Data Manager API responses for admin UI. */
+export const getSyncStats = query({
+  args: {
+    sessionToken: v.string(),
+    days: v.optional(v.number()),
+    now: v.number(),
+  },
+  returns: v.object({
+    days: v.number(),
+    from: v.number(),
+    to: v.number(),
+    totals: v.object({
+      leads: v.number(),
+      withGclid: v.number(),
+      withGbraid: v.number(),
+      withWbraid: v.number(),
+      withAnyClickId: v.number(),
+      withMarketingConsent: v.number(),
+      pending: v.number(),
+      sent: v.number(),
+      skipped: v.number(),
+      failed: v.number(),
+      noSync: v.number(),
+    }),
+    recent: v.array(syncRecentItem),
+  }),
+  handler: async (ctx, args) => {
+    await requireAdminSession(args.sessionToken);
+    const days = Math.min(90, Math.max(1, Math.floor(args.days ?? 30)));
+    const to =
+      typeof args.now === "number" &&
+      args.now > 0 &&
+      args.now < 4102444800000
+        ? args.now
+        : 0;
+    if (!to) throw new Error("Invalid now");
+    const from = to - days * 24 * 60 * 60 * 1000;
+
+    const leads = await ctx.db
+      .query("leads")
+      .withIndex("by_created", (q) => q.gte("createdAt", from))
+      .take(500);
+
+    const totals = {
+      leads: 0,
+      withGclid: 0,
+      withGbraid: 0,
+      withWbraid: 0,
+      withAnyClickId: 0,
+      withMarketingConsent: 0,
+      pending: 0,
+      sent: 0,
+      skipped: 0,
+      failed: 0,
+      noSync: 0,
+    };
+
+    for (const lead of leads) {
+      totals.leads += 1;
+      if (lead.gclid) totals.withGclid += 1;
+      if (lead.gbraid) totals.withGbraid += 1;
+      if (lead.wbraid) totals.withWbraid += 1;
+      if (lead.gclid || lead.gbraid || lead.wbraid) totals.withAnyClickId += 1;
+      if (lead.marketingConsent) totals.withMarketingConsent += 1;
+      const st = lead.googleAdsStatus;
+      if (st === "pending") totals.pending += 1;
+      else if (st === "sent") totals.sent += 1;
+      else if (st === "skipped") totals.skipped += 1;
+      else if (st === "failed") totals.failed += 1;
+      else totals.noSync += 1;
+    }
+
+    const withSyncAttempt = leads
+      .filter((l) => l.googleAdsStatus != null)
+      .sort((a, b) => {
+        const ta = a.googleAdsSyncedAt ?? a.createdAt;
+        const tb = b.googleAdsSyncedAt ?? b.createdAt;
+        return tb - ta;
+      })
+      .slice(0, 15)
+      .map((l) => ({
+        leadId: l._id,
+        name: l.name,
+        email: l.email,
+        createdAt: l.createdAt,
+        gclid: l.gclid,
+        gbraid: l.gbraid,
+        wbraid: l.wbraid,
+        marketingConsent: l.marketingConsent,
+        googleAdsStatus: l.googleAdsStatus,
+        googleAdsSyncedAt: l.googleAdsSyncedAt,
+        googleAdsError: l.googleAdsError,
+        googleAdsRequestId: l.googleAdsRequestId,
+        googleAdsHttpStatus: l.googleAdsHttpStatus,
+        googleAdsApiResponse: l.googleAdsApiResponse,
+      }));
+
+    return { days, from, to, totals, recent: withSyncAttempt };
   },
 });

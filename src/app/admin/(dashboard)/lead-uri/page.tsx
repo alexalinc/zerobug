@@ -93,9 +93,14 @@ type LeadRow = {
   quoteDetails?: string;
   status: "new" | "contacted" | "won" | "lost";
   gclid?: string;
+  gbraid?: string;
+  wbraid?: string;
   googleAdsStatus?: "pending" | "sent" | "skipped" | "failed";
   googleAdsError?: string;
   googleAdsSyncedAt?: number;
+  googleAdsRequestId?: string;
+  googleAdsHttpStatus?: number;
+  googleAdsApiResponse?: string;
   marketingConsent?: boolean;
   unreadReplyCount?: number;
   lastInboundAt?: number;
@@ -216,6 +221,15 @@ function GoogleAdsBlock({
     return <span className="text-zinc-600">—</span>;
   }
 
+  const clickIds = [
+    lead.gclid ? `gclid: ${lead.gclid}` : null,
+    lead.gbraid ? `gbraid: ${lead.gbraid}` : null,
+    lead.wbraid ? `wbraid: ${lead.wbraid}` : null,
+  ].filter(Boolean);
+  const canRetry =
+    lead.marketingConsent !== false &&
+    (lead.googleAdsStatus === "failed" || lead.googleAdsStatus === "skipped");
+
   return (
     <div className="space-y-1">
       <p
@@ -228,14 +242,37 @@ function GoogleAdsBlock({
         )}
       >
         {ADS_STATUS_LABEL[lead.googleAdsStatus] ?? lead.googleAdsStatus}
+        {lead.googleAdsHttpStatus != null
+          ? ` · HTTP ${lead.googleAdsHttpStatus}`
+          : ""}
       </p>
-      {lead.gclid ? (
-        <p className="truncate text-[10px] text-zinc-600" title={lead.gclid}>
-          gclid
+      {clickIds.length > 0 ? (
+        <p
+          className="truncate text-[10px] text-zinc-500"
+          title={clickIds.join("\n")}
+        >
+          {lead.gclid ? "gclid" : null}
+          {lead.gclid && (lead.gbraid || lead.wbraid) ? " · " : null}
+          {lead.gbraid ? "gbraid" : null}
+          {lead.gbraid && lead.wbraid ? " · " : null}
+          {lead.wbraid ? "wbraid" : null}
         </p>
-      ) : null}
+      ) : (
+        <p className="text-[10px] text-zinc-600">fără click ID</p>
+      )}
       {lead.marketingConsent === false ? (
         <p className="text-[10px] text-zinc-600">fără consent</p>
+      ) : null}
+      {lead.googleAdsRequestId ? (
+        <p
+          className="truncate text-[10px] text-zinc-600"
+          title={lead.googleAdsRequestId}
+        >
+          req:{" "}
+          {lead.googleAdsRequestId.length > 18
+            ? `${lead.googleAdsRequestId.slice(0, 14)}…`
+            : lead.googleAdsRequestId}
+        </p>
       ) : null}
       {lead.googleAdsError ? (
         <p
@@ -245,8 +282,15 @@ function GoogleAdsBlock({
           {lead.googleAdsError}
         </p>
       ) : null}
-      {(lead.googleAdsStatus === "failed" ||
-        lead.googleAdsStatus === "skipped") && (
+      {lead.googleAdsApiResponse ? (
+        <pre
+          className="max-h-20 overflow-auto whitespace-pre-wrap break-all rounded bg-zinc-950/50 p-1 text-[9px] leading-snug text-zinc-500"
+          title={lead.googleAdsApiResponse}
+        >
+          {lead.googleAdsApiResponse}
+        </pre>
+      ) : null}
+      {canRetry ? (
         <Button
           size="sm"
           variant="outline"
@@ -256,7 +300,7 @@ function GoogleAdsBlock({
         >
           Re-trimite
         </Button>
-      )}
+      ) : null}
     </div>
   );
 }
