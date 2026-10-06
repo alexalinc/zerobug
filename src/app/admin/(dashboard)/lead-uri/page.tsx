@@ -139,7 +139,14 @@ function defaultReplySubject(lead: LeadRow) {
   return `Re: ${tip} — ZeroBug`;
 }
 
+const REPLY_SIGNATURE = `Alin - CEO ZeroBug
+0773 319 554`;
+
 function defaultReplyBody(lead: LeadRow) {
+  if (lead.status !== "new") {
+    return `\n${REPLY_SIGNATURE}`;
+  }
+
   const first = lead.name.trim().split(/\s+/)[0] || "";
   return `Mulțumim pentru mesaj${first ? `, ${first}` : ""}!
 
@@ -148,7 +155,7 @@ Am primit cererea ta și revenim în curând cu detalii / o ofertă clară.
 Dacă vrei, ne poți răspunde la acest email cu orice detalii suplimentare.
 
 O zi bună,
-Echipa ZeroBug`;
+${REPLY_SIGNATURE}`;
 }
 
 function StatusPill({ status }: { status: LeadRow["status"] }) {
