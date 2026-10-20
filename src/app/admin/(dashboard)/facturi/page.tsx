@@ -8,8 +8,14 @@ import {
 import { useAction, useConvex, useQuery } from "convex/react";
 import { api } from "@convex/_generated/api";
 import { Button, buttonVariants } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import type { Id } from "@convex/_generated/dataModel";
-import { formatRon } from "@/lib/vat";
+import {
+  computeVatAmounts,
+  formatRon,
+  type VatMode,
+} from "@/lib/vat";
 import { useMemo, useState } from "react";
 import { cn } from "@/lib/utils";
 import {
@@ -24,6 +30,7 @@ import {
   Mail,
   MailWarning,
   RefreshCw,
+  UserPlus,
   X,
 } from "lucide-react";
 
@@ -163,12 +170,21 @@ export default function FacturiPage() {
   const generateForCompany = useAction(
     api.invoicesBilling.generateForCompany,
   );
+  const generateOneOff = useAction(api.invoicesBilling.generateOneOff);
   const resend = useAction(api.invoices.resendEmail);
   const regeneratePdf = useAction(api.invoices.regeneratePdf);
   const sendToAccounting = useAction(api.invoices.sendToAccounting);
+  const clientsForInvoice = useQuery(
+    api.companies.listForInvoicing,
+    withAdminToken(token),
+  );
 
   const [showGenerate, setShowGenerate] = useState(false);
+  const [generateTab, setGenerateTab] = useState<"monthly" | "oneoff">(
+    "monthly",
+  );
   const [busyId, setBusyId] = useState<Id<"companies"> | null>(null);
+  const [oneOffBusy, setOneOffBusy] = useState(false);
   const [sendingId, setSendingId] = useState<Id<"invoices"> | null>(null);
   const [accountingId, setAccountingId] =
     useState<Id<"invoices"> | null>(null);
@@ -178,6 +194,29 @@ export default function FacturiPage() {
   const [downloading, setDownloading] = useState(false);
   const [sendingAccountingBulk, setSendingAccountingBulk] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const [oneOffMode, setOneOffMode] = useState<"existing" | "new">("existing");
+  const [oneOffCompanyId, setOneOffCompanyId] = useState<string>("");
+  const [oneOffClient, setOneOffClient] = useState({
+    name: "",
+    email: "",
+    cui: "",
+    regCom: "",
+    address: "",
+    phone: "",
+  });
+  const [oneOffSaveClient, setOneOffSaveClient] = useState(true);
+  const [oneOffAmount, setOneOffAmount] = useState("");
+  const [oneOffVatMode, setOneOffVatMode] = useState<VatMode>("excluded");
+  const [oneOffDescription, setOneOffDescription] = useState(
+    "Prestare servicii conform contract",
+  );
+
+  const oneOffPreview = useMemo(() => {
+    const amount = Number(oneOffAmount);
+    if (!amount || amount <= 0) return null;
+    return computeVatAmounts(amount, oneOffVatMode);
+  }, [oneOffAmount, oneOffVatMode]);
 
   const selectableIds = useMemo(
     () =>
@@ -193,7 +232,11 @@ export default function FacturiPage() {
 
   const summary = useMemo(() => {
     const list = invoices ?? [];
-    const thisMonth = list.filter((i) => i.periodKey === periodKey);
+    const thisMonth = list.filter(
+      (i) =>
+        i.periodKey === periodKey ||
+        (i.periodKey?.startsWith(`${periodKey}-`) ?? false),
+    );
     const scope = thisMonth.length > 0 ? thisMonth : list;
     const gross = scope.reduce((s, i) => s + i.grossAmount, 0);
     const sent = scope.filter((i) => i.emailStatus === "sent").length;
@@ -236,6 +279,62 @@ export default function FacturiPage() {
       setError(e instanceof Error ? e.message : "Generarea a eșuat");
     } finally {
       setBusyId(null);
+    }
+  }
+
+  function resetOneOffForm() {
+    setOneOffMode("existing");
+    setOneOffCompanyId("");
+    setOneOffClient({
+      name: "",
+      email: "",
+      cui: "",
+      regCom: "",
+      address: "",
+      phone: "",
+    });
+    setOneOffSaveClient(true);
+    setOneOffAmount("");
+    setOneOffVatMode("excluded");
+    setOneOffDescription("Prestare servicii conform contract");
+  }
+
+  async function onGenerateOneOff(e: React.FormEvent) {
+    e.preventDefault();
+    if (!token) return;
+    const amount = Number(oneOffAmount);
+    if (!amount || amount <= 0) {
+      setError("Introdu o sumă validă");
+      return;
+    }
+    setOneOffBusy(true);
+    setError(null);
+    try {
+      await generateOneOff({
+        sessionToken: token,
+        amount,
+        vatMode: oneOffVatMode,
+        description: oneOffDescription,
+        ...(oneOffMode === "existing"
+          ? { companyId: oneOffCompanyId as Id<"companies"> }
+          : {
+              client: {
+                name: oneOffClient.name,
+                email: oneOffClient.email,
+                cui: oneOffClient.cui || undefined,
+                regCom: oneOffClient.regCom || undefined,
+                address: oneOffClient.address || undefined,
+                phone: oneOffClient.phone || undefined,
+              },
+              saveClient: oneOffSaveClient,
+            }),
+      });
+      setError("Factură unică generată și trimisă.");
+      resetOneOffForm();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Generarea a eșuat");
+    } finally {
+      setOneOffBusy(false);
     }
   }
 
@@ -331,7 +430,9 @@ export default function FacturiPage() {
   }
 
   const loading = invoices === undefined;
-  const isSuccessBanner = error?.startsWith("Trimis la contabilitate");
+  const isSuccessBanner =
+    error?.startsWith("Trimis la contabilitate") ||
+    error?.startsWith("Factură unică generată");
 
   return (
     <div className="space-y-6 sm:space-y-8">
@@ -450,98 +551,375 @@ export default function FacturiPage() {
           <div className="flex flex-wrap items-end justify-between gap-4 border-b border-white/[0.06] px-5 py-4 md:px-6">
             <div>
               <p className="text-sm font-medium text-white">
-                Generare manuală
+                Generare factură
               </p>
               <p className="mt-1 text-xs text-zinc-500">
-                {periodLabel(periodKey)} · doar firme active cu sumă lunară
+                Lunară pe firme active, sau factură unică pentru orice client
               </p>
+            </div>
+            <div className="flex rounded-xl border border-white/10 bg-black/20 p-1">
+              <button
+                type="button"
+                onClick={() => setGenerateTab("monthly")}
+                className={cn(
+                  "rounded-lg px-3 py-1.5 text-xs font-medium transition-colors",
+                  generateTab === "monthly"
+                    ? "bg-white/10 text-white"
+                    : "text-zinc-500 hover:text-zinc-300",
+                )}
+              >
+                Firme lunare
+              </button>
+              <button
+                type="button"
+                onClick={() => setGenerateTab("oneoff")}
+                className={cn(
+                  "rounded-lg px-3 py-1.5 text-xs font-medium transition-colors",
+                  generateTab === "oneoff"
+                    ? "bg-white/10 text-white"
+                    : "text-zinc-500 hover:text-zinc-300",
+                )}
+              >
+                Factură unică
+              </button>
             </div>
           </div>
 
-          <div className="overflow-x-auto px-2 pb-4 md:px-3">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="text-left text-[11px] uppercase tracking-[0.12em] text-zinc-500">
-                  <th className="px-4 py-3 font-medium">Firmă</th>
-                  <th className="px-4 py-3 font-medium">Sumă / TVA</th>
-                  <th className="px-4 py-3 font-medium">Detalii</th>
-                  <th className="px-4 py-3 font-medium">Status</th>
-                  <th className="px-4 py-3" />
-                </tr>
-              </thead>
-              <tbody>
-                {(manualList ?? []).map((row) => (
-                  <tr
-                    key={row.companyId}
-                    className="border-t border-white/[0.05] transition-colors hover:bg-white/[0.025]"
-                  >
-                    <td className="px-4 py-4">
-                      <p className="font-medium text-white">{row.name}</p>
-                      <p className="mt-0.5 text-xs text-zinc-500">
-                        {row.email}
-                      </p>
-                    </td>
-                    <td className="px-4 py-4 text-xs text-zinc-400">
-                      <p>
-                        Net {formatRon(row.net)} · TVA {formatRon(row.vat)}
-                      </p>
-                      <p className="mt-1 font-medium text-white tabular-nums">
-                        Total {formatRon(row.gross)}
-                      </p>
-                      <p className="mt-1 text-zinc-600">
-                        {row.vatMode === "included"
-                          ? "TVA inclus"
-                          : "fără TVA (+21%)"}
-                      </p>
-                    </td>
-                    <td className="max-w-[240px] px-4 py-4 text-xs text-zinc-400">
-                      <p>
-                        Nr.{" "}
-                        {row.alreadyGenerated
-                          ? "deja alocat"
-                          : (nextNumber?.formatted ?? "—")}
-                      </p>
-                      <p className="mt-1">{periodLabel(periodKey)}</p>
-                      <p className="mt-1 line-clamp-2 text-zinc-500">
-                        {row.invoiceDescription ||
-                          "Prestare servicii conform contract"}
-                      </p>
-                    </td>
-                    <td className="px-4 py-4">
-                      <StatusPill
-                        tone={row.alreadyGenerated ? "ok" : "muted"}
-                      >
-                        {row.alreadyGenerated ? "Deja generată" : "Pregătită"}
-                      </StatusPill>
-                    </td>
-                    <td className="px-4 py-4 text-right">
-                      <Button
-                        size="sm"
-                        disabled={
-                          row.alreadyGenerated || busyId === row.companyId
-                        }
-                        onClick={() => onGenerate(row.companyId)}
-                      >
-                        {busyId === row.companyId
-                          ? "Se generează…"
-                          : "Generează"}
-                      </Button>
-                    </td>
+          {generateTab === "monthly" ? (
+            <div className="overflow-x-auto px-2 pb-4 md:px-3">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="text-left text-[11px] uppercase tracking-[0.12em] text-zinc-500">
+                    <th className="px-4 py-3 font-medium">Firmă</th>
+                    <th className="px-4 py-3 font-medium">Sumă / TVA</th>
+                    <th className="px-4 py-3 font-medium">Detalii</th>
+                    <th className="px-4 py-3 font-medium">Status</th>
+                    <th className="px-4 py-3" />
                   </tr>
-                ))}
-                {(manualList ?? []).length === 0 ? (
-                  <tr>
-                    <td
-                      colSpan={5}
-                      className="px-4 py-12 text-center text-sm text-zinc-500"
+                </thead>
+                <tbody>
+                  {(manualList ?? []).map((row) => (
+                    <tr
+                      key={row.companyId}
+                      className="border-t border-white/[0.05] transition-colors hover:bg-white/[0.025]"
                     >
-                      Nicio firmă activă cu sumă lunară. Adaugă suma în Firme.
-                    </td>
-                  </tr>
-                ) : null}
-              </tbody>
-            </table>
-          </div>
+                      <td className="px-4 py-4">
+                        <p className="font-medium text-white">{row.name}</p>
+                        <p className="mt-0.5 text-xs text-zinc-500">
+                          {row.email}
+                        </p>
+                      </td>
+                      <td className="px-4 py-4 text-xs text-zinc-400">
+                        <p>
+                          Net {formatRon(row.net)} · TVA {formatRon(row.vat)}
+                        </p>
+                        <p className="mt-1 font-medium text-white tabular-nums">
+                          Total {formatRon(row.gross)}
+                        </p>
+                        <p className="mt-1 text-zinc-600">
+                          {row.vatMode === "included"
+                            ? "TVA inclus"
+                            : "fără TVA (+21%)"}
+                        </p>
+                      </td>
+                      <td className="max-w-[240px] px-4 py-4 text-xs text-zinc-400">
+                        <p>
+                          Nr.{" "}
+                          {row.alreadyGenerated
+                            ? "deja alocat"
+                            : (nextNumber?.formatted ?? "—")}
+                        </p>
+                        <p className="mt-1">{periodLabel(periodKey)}</p>
+                        <p className="mt-1 line-clamp-2 text-zinc-500">
+                          {row.invoiceDescription ||
+                            "Prestare servicii conform contract"}
+                        </p>
+                      </td>
+                      <td className="px-4 py-4">
+                        <StatusPill
+                          tone={row.alreadyGenerated ? "ok" : "muted"}
+                        >
+                          {row.alreadyGenerated
+                            ? "Deja generată"
+                            : "Pregătită"}
+                        </StatusPill>
+                      </td>
+                      <td className="px-4 py-4 text-right">
+                        <Button
+                          size="sm"
+                          disabled={
+                            row.alreadyGenerated || busyId === row.companyId
+                          }
+                          onClick={() => onGenerate(row.companyId)}
+                        >
+                          {busyId === row.companyId
+                            ? "Se generează…"
+                            : "Generează"}
+                        </Button>
+                      </td>
+                    </tr>
+                  ))}
+                  {(manualList ?? []).length === 0 ? (
+                    <tr>
+                      <td
+                        colSpan={5}
+                        className="px-4 py-12 text-center text-sm text-zinc-500"
+                      >
+                        Nicio firmă activă cu sumă lunară. Adaugă suma în
+                        Firme.
+                      </td>
+                    </tr>
+                  ) : null}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <form
+              onSubmit={(e) => void onGenerateOneOff(e)}
+              className="space-y-5 px-5 pb-6 md:px-6"
+            >
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() => setOneOffMode("existing")}
+                  className={cn(
+                    "rounded-xl border px-3 py-2 text-xs font-medium transition-colors",
+                    oneOffMode === "existing"
+                      ? "border-[color:var(--brand)]/40 bg-[color:var(--brand)]/10 text-white"
+                      : "border-white/10 text-zinc-400 hover:text-zinc-200",
+                  )}
+                >
+                  Client existent
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setOneOffMode("new")}
+                  className={cn(
+                    "inline-flex items-center gap-1.5 rounded-xl border px-3 py-2 text-xs font-medium transition-colors",
+                    oneOffMode === "new"
+                      ? "border-[color:var(--brand)]/40 bg-[color:var(--brand)]/10 text-white"
+                      : "border-white/10 text-zinc-400 hover:text-zinc-200",
+                  )}
+                >
+                  <UserPlus className="size-3.5" />
+                  Client nou (nesalvat)
+                </button>
+              </div>
+
+              {oneOffMode === "existing" ? (
+                <div className="space-y-2">
+                  <Label htmlFor="oneoff-client">Selectează clientul</Label>
+                  <select
+                    id="oneoff-client"
+                    required
+                    value={oneOffCompanyId}
+                    onChange={(e) => {
+                      const id = e.target.value;
+                      setOneOffCompanyId(id);
+                      const c = clientsForInvoice?.find((x) => x._id === id);
+                      if (c) {
+                        if (c.vatMode) setOneOffVatMode(c.vatMode);
+                        if (c.invoiceDescription) {
+                          setOneOffDescription(c.invoiceDescription);
+                        }
+                      }
+                    }}
+                    className="h-9 w-full rounded-lg border border-white/15 bg-zinc-950 px-3 text-sm text-white outline-none focus-visible:border-[color:var(--brand)]/50"
+                  >
+                    <option value="">— Alege din clienți —</option>
+                    {(clientsForInvoice ?? []).map((c) => (
+                      <option key={c._id} value={c._id}>
+                        {c.name}
+                        {c.hasMonthlyBilling ? " · lunar" : ""} · {c.email}
+                      </option>
+                    ))}
+                  </select>
+                  {(clientsForInvoice ?? []).length === 0 ? (
+                    <p className="text-xs text-zinc-500">
+                      Nu există clienți salvați. Adaugă unul nou mai jos sau în
+                      Firme.
+                    </p>
+                  ) : null}
+                </div>
+              ) : (
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label htmlFor="oneoff-name">Denumire firmă *</Label>
+                    <Input
+                      id="oneoff-name"
+                      required
+                      value={oneOffClient.name}
+                      onChange={(e) =>
+                        setOneOffClient((s) => ({
+                          ...s,
+                          name: e.target.value,
+                        }))
+                      }
+                      placeholder="SC Exemplu SRL"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="oneoff-email">Email factură *</Label>
+                    <Input
+                      id="oneoff-email"
+                      type="email"
+                      required
+                      value={oneOffClient.email}
+                      onChange={(e) =>
+                        setOneOffClient((s) => ({
+                          ...s,
+                          email: e.target.value,
+                        }))
+                      }
+                      placeholder="facturi@exemplu.ro"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="oneoff-cui">CUI</Label>
+                    <Input
+                      id="oneoff-cui"
+                      value={oneOffClient.cui}
+                      onChange={(e) =>
+                        setOneOffClient((s) => ({
+                          ...s,
+                          cui: e.target.value,
+                        }))
+                      }
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="oneoff-reg">Reg. Com.</Label>
+                    <Input
+                      id="oneoff-reg"
+                      value={oneOffClient.regCom}
+                      onChange={(e) =>
+                        setOneOffClient((s) => ({
+                          ...s,
+                          regCom: e.target.value,
+                        }))
+                      }
+                    />
+                  </div>
+                  <div className="space-y-2 sm:col-span-2">
+                    <Label htmlFor="oneoff-address">Adresă</Label>
+                    <Input
+                      id="oneoff-address"
+                      value={oneOffClient.address}
+                      onChange={(e) =>
+                        setOneOffClient((s) => ({
+                          ...s,
+                          address: e.target.value,
+                        }))
+                      }
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="oneoff-phone">Telefon</Label>
+                    <Input
+                      id="oneoff-phone"
+                      value={oneOffClient.phone}
+                      onChange={(e) =>
+                        setOneOffClient((s) => ({
+                          ...s,
+                          phone: e.target.value,
+                        }))
+                      }
+                    />
+                  </div>
+                  <div className="flex items-end pb-1 sm:col-span-2">
+                    <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3">
+                      <input
+                        type="checkbox"
+                        checked={oneOffSaveClient}
+                        onChange={(e) =>
+                          setOneOffSaveClient(e.target.checked)
+                        }
+                        className="mt-0.5 size-4 rounded border-white/20 bg-zinc-950 accent-[color:var(--brand)]"
+                      />
+                      <span>
+                        <span className="block text-sm font-medium text-white">
+                          Salvează clientul în Firme
+                        </span>
+                        <span className="mt-0.5 block text-xs text-zinc-500">
+                          Fără facturare lunară — doar ca să-l poți selecta la
+                          facturi viitoare.
+                        </span>
+                      </span>
+                    </label>
+                  </div>
+                </div>
+              )}
+
+              <div className="grid gap-4 border-t border-white/[0.06] pt-5 sm:grid-cols-3">
+                <div className="space-y-2">
+                  <Label htmlFor="oneoff-amount">Sumă *</Label>
+                  <Input
+                    id="oneoff-amount"
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    required
+                    value={oneOffAmount}
+                    onChange={(e) => setOneOffAmount(e.target.value)}
+                    placeholder="0.00"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="oneoff-vat">Mod TVA</Label>
+                  <select
+                    id="oneoff-vat"
+                    value={oneOffVatMode}
+                    onChange={(e) =>
+                      setOneOffVatMode(e.target.value as VatMode)
+                    }
+                    className="h-9 w-full rounded-lg border border-white/15 bg-zinc-950 px-3 text-sm text-white outline-none focus-visible:border-[color:var(--brand)]/50"
+                  >
+                    <option value="excluded">Sumă netă (+21% TVA)</option>
+                    <option value="included">TVA inclus în sumă</option>
+                  </select>
+                </div>
+                <div className="space-y-2 sm:col-span-3">
+                  <Label htmlFor="oneoff-desc">Descriere pe factură *</Label>
+                  <Input
+                    id="oneoff-desc"
+                    required
+                    value={oneOffDescription}
+                    onChange={(e) => setOneOffDescription(e.target.value)}
+                  />
+                </div>
+              </div>
+
+              {oneOffPreview ? (
+                <p className="text-xs text-zinc-400">
+                  Net {formatRon(oneOffPreview.net)} · TVA{" "}
+                  {formatRon(oneOffPreview.vat)} ·{" "}
+                  <span className="font-medium text-white">
+                    Total {formatRon(oneOffPreview.gross)}
+                  </span>
+                  {" · "}
+                  Nr. {nextNumber?.formatted ?? "—"}
+                </p>
+              ) : null}
+
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  type="submit"
+                  disabled={
+                    oneOffBusy ||
+                    (oneOffMode === "existing" && !oneOffCompanyId)
+                  }
+                  className="gap-2"
+                >
+                  {oneOffBusy ? (
+                    <Loader2 className="size-4 animate-spin" />
+                  ) : (
+                    <FilePlus2 className="size-4" />
+                  )}
+                  {oneOffBusy ? "Se generează…" : "Generează factura"}
+                </Button>
+              </div>
+            </form>
+          )}
         </section>
       ) : null}
 

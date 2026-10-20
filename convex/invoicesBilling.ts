@@ -333,3 +333,126 @@ export const generateManual = action({
     );
   },
 });
+
+const oneOffClientArg = v.object({
+  name: v.string(),
+  email: v.string(),
+  cui: v.optional(v.string()),
+  regCom: v.optional(v.string()),
+  address: v.optional(v.string()),
+  phone: v.optional(v.string()),
+});
+
+/**
+ * One-off invoice: existing client or new firm details.
+ * Does not use monthly billing / period uniqueness.
+ * Optional saveClient stores the new firm without monthlyAmount.
+ */
+export const generateOneOff = action({
+  args: {
+    sessionToken: v.string(),
+    companyId: v.optional(v.id("companies")),
+    client: v.optional(oneOffClientArg),
+    saveClient: v.optional(v.boolean()),
+    amount: v.number(),
+    vatMode: v.union(v.literal("excluded"), v.literal("included")),
+    description: v.string(),
+  },
+  returns: v.id("invoices"),
+  handler: async (ctx, args): Promise<Id<"invoices">> => {
+    await requireAdminSession(args.sessionToken);
+
+    if (!Number.isFinite(args.amount) || args.amount <= 0) {
+      throw new Error("Sumă invalidă");
+    }
+    const description = args.description.trim();
+    if (!description) {
+      throw new Error("Adaugă descrierea serviciului");
+    }
+
+    let companyId = args.companyId;
+    if (companyId) {
+      const company = await ctx.runQuery(internal.companies.getInternal, {
+        id: companyId,
+      });
+      if (!company) throw new Error("Clientul nu a fost găsit");
+      if (company.status !== "active") {
+        throw new Error("Clientul este suspendat");
+      }
+    } else if (args.client) {
+      const name = args.client.name.trim();
+      const email = args.client.email.trim();
+      if (!name) throw new Error("Numele firmei este obligatoriu");
+      if (!email || !email.includes("@")) {
+        throw new Error("Email invalid");
+      }
+      companyId = await ctx.runMutation(
+        internal.companies.createForOneOffInternal,
+        {
+          name,
+          email,
+          cui: args.client.cui,
+          regCom: args.client.regCom,
+          address: args.client.address,
+          phone: args.client.phone,
+          vatMode: args.vatMode,
+          invoiceDescription: description,
+          listedAsClient: args.saveClient === true,
+        },
+      );
+    } else {
+      throw new Error("Selectează un client sau completează datele firmei");
+    }
+
+    const now = new Date();
+    const baseKey = periodKeyFromDate(now);
+    // Unique key so one-offs never collide with monthly invoices
+    const periodKey = `${baseKey}-o-${Date.now().toString(36)}`;
+    const issuedAt = Date.now();
+    const dueAt = issuedAt + 14 * 24 * 60 * 60 * 1000;
+    const periodLabel = `Factură unică · ${now.toLocaleDateString("ro-RO")}`;
+
+    const amounts = computeVatAmounts(args.amount, args.vatMode);
+
+    const issuer: { invoiceSeries?: string } = await ctx.runQuery(
+      internal.settings.getIssuerInternal,
+      {},
+    );
+    const series: string = issuer.invoiceSeries ?? "ZB";
+    const year = now.getFullYear();
+    const number: string = await ctx.runMutation(
+      internal.invoices.allocateNumber,
+      { year, series },
+    );
+
+    const invoiceId: Id<"invoices"> = await ctx.runMutation(
+      internal.invoices.createRecord,
+      {
+        companyId,
+        number,
+        series,
+        periodKey,
+        periodLabel,
+        issuedAt,
+        dueAt,
+        netAmount: amounts.net,
+        vatAmount: amounts.vat,
+        grossAmount: amounts.gross,
+        lines: [
+          {
+            description,
+            quantity: 1,
+            unitNet: amounts.net,
+            vatRate: VAT_RATE,
+          },
+        ],
+      },
+    );
+
+    await ctx.runAction(internal.invoicesActions.generateAndSend, {
+      invoiceId,
+    });
+
+    return invoiceId;
+  },
+});

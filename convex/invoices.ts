@@ -425,7 +425,8 @@ export const overviewStats = query({
   }),
   handler: async (ctx, args) => {
     await requireAdminSession(args.sessionToken);
-    const companies = await ctx.db.query("companies").take(500);
+    const allCompanies = await ctx.db.query("companies").take(500);
+    const companies = allCompanies.filter((c) => c.listedAsClient !== false);
     const subs = await ctx.db.query("subscriptions").take(500);
     const invoices = await ctx.db.query("invoices").take(500);
     const leads = await ctx.db
@@ -460,7 +461,9 @@ export const overviewStats = query({
       { net: number; vat: number; gross: number; count: number }
     >();
     for (const inv of issued) {
-      const cur = monthMap.get(inv.periodKey) ?? {
+      // Normalize one-off keys (YYYY-MM-o-…) into calendar month buckets
+      const monthKey = inv.periodKey.slice(0, 7);
+      const cur = monthMap.get(monthKey) ?? {
         net: 0,
         vat: 0,
         gross: 0,
@@ -470,7 +473,7 @@ export const overviewStats = query({
       cur.vat += inv.vatAmount;
       cur.gross += inv.grossAmount;
       cur.count += 1;
-      monthMap.set(inv.periodKey, cur);
+      monthMap.set(monthKey, cur);
     }
     const byMonth = [...monthMap.entries()]
       .sort(([a], [b]) => a.localeCompare(b))

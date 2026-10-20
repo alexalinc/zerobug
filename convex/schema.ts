@@ -18,6 +18,11 @@ export default defineSchema({
     ),
     /** Line text printed on every invoice for this company */
     invoiceDescription: v.optional(v.string()),
+    /**
+     * false = guest used only for one invoice (hidden from Firme / client picker).
+     * undefined/true = listed client for future one-off or monthly billing.
+     */
+    listedAsClient: v.optional(v.boolean()),
     status: v.union(v.literal("active"), v.literal("suspended")),
     stripeCustomerId: v.optional(v.string()),
     createdAt: v.number(),
