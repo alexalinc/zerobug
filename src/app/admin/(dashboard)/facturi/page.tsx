@@ -283,6 +283,12 @@ export default function FacturiPage() {
     setSelected(new Set(selectableIds));
   }
 
+  function successGenerateMessage() {
+    return isNextMonthBilling
+      ? `Factură generată pentru ${periodLabel(billingPeriodKey)}. Pe 1 ale lunii nu se mai emite automat pentru acest client — ciclul continuă luna următoare.`
+      : `Factură generată pentru ${periodLabel(billingPeriodKey)}.`;
+  }
+
   async function onGenerate(companyId: Id<"companies">) {
     if (!token) return;
     setBusyId(companyId);
@@ -293,13 +299,18 @@ export default function FacturiPage() {
         companyId,
         periodKey: billingPeriodKey,
       });
-      setError(
-        isNextMonthBilling
-          ? `Factură generată pentru ${periodLabel(billingPeriodKey)}. Pe 1 ale lunii nu se mai emite automat pentru acest client — ciclul continuă luna următoare.`
-          : `Factură generată pentru ${periodLabel(billingPeriodKey)}.`,
-      );
+      setError(successGenerateMessage());
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Generarea a eșuat");
+      const message = e instanceof Error ? e.message : "Generarea a eșuat";
+      // Long PDF/email actions can outlive the browser↔Convex websocket;
+      // the server often finishes anyway (invoice appears in the list).
+      if (/connection lost while action was in flight/i.test(message)) {
+        setError(
+          `${successGenerateMessage()} Conexiunea s-a întrerupt în timp ce se genera PDF/email — verifică lista; de obicei factura e deja creată.`,
+        );
+      } else {
+        setError(message);
+      }
     } finally {
       setBusyId(null);
     }
