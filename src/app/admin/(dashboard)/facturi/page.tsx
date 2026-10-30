@@ -41,6 +41,14 @@ function currentPeriodKey() {
   return `${y}-${m}`;
 }
 
+/** Next calendar month as YYYY-MM (used for early invoice generation). */
+function nextPeriodKey(from = new Date()) {
+  const d = new Date(from.getFullYear(), from.getMonth() + 1, 1);
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  return `${y}-${m}`;
+}
+
 function periodLabel(key: string) {
   const [y, m] = key.split("-");
   const months = [
@@ -155,7 +163,12 @@ export default function FacturiPage() {
   const token = useAdminSessionToken();
   const convex = useConvex();
   const periodKey = useMemo(() => currentPeriodKey(), []);
-  const year = useMemo(() => Number(periodKey.split("-")[0]), [periodKey]);
+  const upcomingPeriodKey = useMemo(() => nextPeriodKey(), []);
+  const [billingPeriodKey, setBillingPeriodKey] = useState(periodKey);
+  const year = useMemo(
+    () => Number(billingPeriodKey.split("-")[0]),
+    [billingPeriodKey],
+  );
   const invoices = useQuery(api.invoices.list, withAdminToken(token)) as
     | InvoiceListItem[]
     | undefined;
@@ -165,7 +178,7 @@ export default function FacturiPage() {
   );
   const manualList = useQuery(
     api.invoices.manualGenerationList,
-    withAdminToken(token, { periodKey }),
+    withAdminToken(token, { periodKey: billingPeriodKey }),
   );
   const generateForCompany = useAction(
     api.invoicesBilling.generateForCompany,
@@ -183,6 +196,7 @@ export default function FacturiPage() {
   const [generateTab, setGenerateTab] = useState<"monthly" | "oneoff">(
     "monthly",
   );
+  const isNextMonthBilling = billingPeriodKey === upcomingPeriodKey;
   const [busyId, setBusyId] = useState<Id<"companies"> | null>(null);
   const [oneOffBusy, setOneOffBusy] = useState(false);
   const [sendingId, setSendingId] = useState<Id<"invoices"> | null>(null);
@@ -274,7 +288,16 @@ export default function FacturiPage() {
     setBusyId(companyId);
     setError(null);
     try {
-      await generateForCompany({ sessionToken: token, companyId, periodKey });
+      await generateForCompany({
+        sessionToken: token,
+        companyId,
+        periodKey: billingPeriodKey,
+      });
+      setError(
+        isNextMonthBilling
+          ? `Factură generată pentru ${periodLabel(billingPeriodKey)}. Pe 1 ale lunii nu se mai emite automat pentru acest client — ciclul continuă luna următoare.`
+          : `Factură generată pentru ${periodLabel(billingPeriodKey)}.`,
+      );
     } catch (e) {
       setError(e instanceof Error ? e.message : "Generarea a eșuat");
     } finally {
@@ -432,7 +455,8 @@ export default function FacturiPage() {
   const loading = invoices === undefined;
   const isSuccessBanner =
     error?.startsWith("Trimis la contabilitate") ||
-    error?.startsWith("Factură unică generată");
+    error?.startsWith("Factură unică generată") ||
+    error?.startsWith("Factură generată pentru");
 
   return (
     <div className="space-y-6 sm:space-y-8">
@@ -586,92 +610,137 @@ export default function FacturiPage() {
           </div>
 
           {generateTab === "monthly" ? (
-            <div className="overflow-x-auto px-2 pb-4 md:px-3">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="text-left text-[11px] uppercase tracking-[0.12em] text-zinc-500">
-                    <th className="px-4 py-3 font-medium">Firmă</th>
-                    <th className="px-4 py-3 font-medium">Sumă / TVA</th>
-                    <th className="px-4 py-3 font-medium">Detalii</th>
-                    <th className="px-4 py-3 font-medium">Status</th>
-                    <th className="px-4 py-3" />
-                  </tr>
-                </thead>
-                <tbody>
-                  {(manualList ?? []).map((row) => (
-                    <tr
-                      key={row.companyId}
-                      className="border-t border-white/[0.05] transition-colors hover:bg-white/[0.025]"
-                    >
-                      <td className="px-4 py-4">
-                        <p className="font-medium text-white">{row.name}</p>
-                        <p className="mt-0.5 text-xs text-zinc-500">
-                          {row.email}
-                        </p>
-                      </td>
-                      <td className="px-4 py-4 text-xs text-zinc-400">
-                        <p>
-                          Net {formatRon(row.net)} · TVA {formatRon(row.vat)}
-                        </p>
-                        <p className="mt-1 font-medium text-white tabular-nums">
-                          Total {formatRon(row.gross)}
-                        </p>
-                        <p className="mt-1 text-zinc-600">
-                          {row.vatMode === "included"
-                            ? "TVA inclus"
-                            : "fără TVA (+21%)"}
-                        </p>
-                      </td>
-                      <td className="max-w-[240px] px-4 py-4 text-xs text-zinc-400">
-                        <p>
-                          Nr.{" "}
-                          {row.alreadyGenerated
-                            ? "deja alocat"
-                            : (nextNumber?.formatted ?? "—")}
-                        </p>
-                        <p className="mt-1">{periodLabel(periodKey)}</p>
-                        <p className="mt-1 line-clamp-2 text-zinc-500">
-                          {row.invoiceDescription ||
-                            "Prestare servicii conform contract"}
-                        </p>
-                      </td>
-                      <td className="px-4 py-4">
-                        <StatusPill
-                          tone={row.alreadyGenerated ? "ok" : "muted"}
-                        >
-                          {row.alreadyGenerated
-                            ? "Deja generată"
-                            : "Pregătită"}
-                        </StatusPill>
-                      </td>
-                      <td className="px-4 py-4 text-right">
-                        <Button
-                          size="sm"
-                          disabled={
-                            row.alreadyGenerated || busyId === row.companyId
-                          }
-                          onClick={() => onGenerate(row.companyId)}
-                        >
-                          {busyId === row.companyId
-                            ? "Se generează…"
-                            : "Generează"}
-                        </Button>
-                      </td>
+            <div className="space-y-4 px-2 pb-4 md:px-3">
+              <div className="flex flex-col gap-3 rounded-2xl border border-white/[0.06] bg-black/20 px-4 py-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
+                <div>
+                  <p className="text-xs font-medium uppercase tracking-[0.12em] text-zinc-500">
+                    Perioada facturii
+                  </p>
+                  <p className="mt-1 text-sm text-zinc-300">
+                    {isNextMonthBilling
+                      ? "Emisi acum pentru luna următoare — pe 1 nu se mai generează automat pentru clienții facturați aici."
+                      : "Emisi pentru luna curentă (aceeași perioadă ca facturarea automată pe 1)."}
+                  </p>
+                </div>
+                <div className="flex rounded-xl border border-white/10 bg-black/30 p-1">
+                  <button
+                    type="button"
+                    onClick={() => setBillingPeriodKey(periodKey)}
+                    className={cn(
+                      "rounded-lg px-3 py-1.5 text-xs font-medium transition-colors",
+                      !isNextMonthBilling
+                        ? "bg-white/10 text-white"
+                        : "text-zinc-500 hover:text-zinc-300",
+                    )}
+                  >
+                    Luna curentă · {periodLabel(periodKey)}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setBillingPeriodKey(upcomingPeriodKey)}
+                    className={cn(
+                      "rounded-lg px-3 py-1.5 text-xs font-medium transition-colors",
+                      isNextMonthBilling
+                        ? "bg-white/10 text-white"
+                        : "text-zinc-500 hover:text-zinc-300",
+                    )}
+                  >
+                    Luna următoare · {periodLabel(upcomingPeriodKey)}
+                  </button>
+                </div>
+              </div>
+
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="text-left text-[11px] uppercase tracking-[0.12em] text-zinc-500">
+                      <th className="px-4 py-3 font-medium">Firmă</th>
+                      <th className="px-4 py-3 font-medium">Sumă / TVA</th>
+                      <th className="px-4 py-3 font-medium">Detalii</th>
+                      <th className="px-4 py-3 font-medium">Status</th>
+                      <th className="px-4 py-3" />
                     </tr>
-                  ))}
-                  {(manualList ?? []).length === 0 ? (
-                    <tr>
-                      <td
-                        colSpan={5}
-                        className="px-4 py-12 text-center text-sm text-zinc-500"
+                  </thead>
+                  <tbody>
+                    {(manualList ?? []).map((row) => (
+                      <tr
+                        key={row.companyId}
+                        className="border-t border-white/[0.05] transition-colors hover:bg-white/[0.025]"
                       >
-                        Nicio firmă activă cu sumă lunară. Adaugă suma în
-                        Firme.
-                      </td>
-                    </tr>
-                  ) : null}
-                </tbody>
-              </table>
+                        <td className="px-4 py-4">
+                          <p className="font-medium text-white">{row.name}</p>
+                          <p className="mt-0.5 text-xs text-zinc-500">
+                            {row.email}
+                          </p>
+                        </td>
+                        <td className="px-4 py-4 text-xs text-zinc-400">
+                          <p>
+                            Net {formatRon(row.net)} · TVA {formatRon(row.vat)}
+                          </p>
+                          <p className="mt-1 font-medium text-white tabular-nums">
+                            Total {formatRon(row.gross)}
+                          </p>
+                          <p className="mt-1 text-zinc-600">
+                            {row.vatMode === "included"
+                              ? "TVA inclus"
+                              : "fără TVA (+21%)"}
+                          </p>
+                        </td>
+                        <td className="max-w-[240px] px-4 py-4 text-xs text-zinc-400">
+                          <p>
+                            Nr.{" "}
+                            {row.alreadyGenerated
+                              ? "deja alocat"
+                              : (nextNumber?.formatted ?? "—")}
+                          </p>
+                          <p className="mt-1">
+                            {periodLabel(billingPeriodKey)}
+                          </p>
+                          <p className="mt-1 line-clamp-2 text-zinc-500">
+                            {row.invoiceDescription ||
+                              "Prestare servicii conform contract"}
+                          </p>
+                        </td>
+                        <td className="px-4 py-4">
+                          <StatusPill
+                            tone={row.alreadyGenerated ? "ok" : "muted"}
+                          >
+                            {row.alreadyGenerated
+                              ? "Deja generată"
+                              : "Pregătită"}
+                          </StatusPill>
+                        </td>
+                        <td className="px-4 py-4 text-right">
+                          <Button
+                            size="sm"
+                            disabled={
+                              row.alreadyGenerated || busyId === row.companyId
+                            }
+                            onClick={() => onGenerate(row.companyId)}
+                          >
+                            {busyId === row.companyId
+                              ? "Se generează…"
+                              : isNextMonthBilling
+                                ? "Generează luna viitoare"
+                                : "Generează"}
+                          </Button>
+                        </td>
+                      </tr>
+                    ))}
+                    {(manualList ?? []).length === 0 ? (
+                      <tr>
+                        <td
+                          colSpan={5}
+                          className="px-4 py-12 text-center text-sm text-zinc-500"
+                        >
+                          Nicio firmă activă cu sumă lunară. Adaugă suma în
+                          Firme.
+                        </td>
+                      </tr>
+                    ) : null}
+                  </tbody>
+                </table>
+              </div>
             </div>
           ) : (
             <form
