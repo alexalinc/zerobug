@@ -13,6 +13,11 @@ function periodKeyFromDate(d: Date) {
   return `${y}-${m}`;
 }
 
+/** Next calendar month as YYYY-MM. */
+function nextPeriodKeyFromDate(d: Date) {
+  return periodKeyFromDate(new Date(d.getFullYear(), d.getMonth() + 1, 1));
+}
+
 function periodLabelFromKey(key: string) {
   const [y, m] = key.split("-");
   const months = [
@@ -30,6 +35,20 @@ function periodLabelFromKey(key: string) {
     "Decembrie",
   ];
   return `${months[Number(m) - 1]} ${y}`;
+}
+
+/** Admin may only issue for the current or next calendar month. */
+function assertAllowedBillingPeriod(periodKey: string) {
+  const now = new Date();
+  const allowed = new Set([
+    periodKeyFromDate(now),
+    nextPeriodKeyFromDate(now),
+  ]);
+  if (!allowed.has(periodKey)) {
+    throw new Error(
+      "Poți genera doar pentru luna curentă sau luna următoare",
+    );
+  }
 }
 
 type BillingCompany = {
@@ -65,6 +84,11 @@ function resolveBillingAmounts(item: BillingItem) {
   };
 }
 
+/**
+ * Creates one monthly invoice per (company, periodKey).
+ * Early generation for next month is safe: runMonthlyBilling on the 1st
+ * finds the existing row by company+period and skips creating a duplicate.
+ */
 export const generateForSubscription = internalAction({
   args: {
     companyId: v.id("companies"),
@@ -93,7 +117,9 @@ export const generateForSubscription = internalAction({
       periodKey: key,
     });
     if (existing) {
-      // Retry PDF/email if the previous run created the row but failed mid-send
+      // Already billed for this period (e.g. early next-month invoice) —
+      // do not create another. Retry PDF/email only if the previous run
+      // created the row but failed mid-send.
       if (!existing.pdfStorageId) {
         try {
           await ctx.runAction(internal.invoicesActions.generateAndSend, {
@@ -176,7 +202,11 @@ export const generateForSubscription = internalAction({
   },
 });
 
-/** Generate invoice for a company using its monthlyAmount (no subscription required). */
+/**
+ * Generate invoice for a company using its monthlyAmount (no subscription required).
+ * Pass next month's periodKey to bill early; automatic billing on the 1st will
+ * skip that company for that period, then resume the month after.
+ */
 export const generateForCompany = action({
   args: {
     sessionToken: v.string(),
@@ -197,13 +227,16 @@ export const generateForCompany = action({
       throw new Error("Setează suma lunară pe firmă înainte de generare");
     }
 
+    const periodKey = args.periodKey ?? periodKeyFromDate(new Date());
+    assertAllowedBillingPeriod(periodKey);
+
     return await ctx.runAction(
       internal.invoicesBilling.generateForSubscription,
       {
         companyId: args.companyId,
         planName: "Mentenanță",
         priceNet: company.monthlyAmount,
-        periodKey: args.periodKey,
+        periodKey,
         monthlyAmount: company.monthlyAmount,
         vatMode: company.vatMode ?? "excluded",
         invoiceDescription:
@@ -234,6 +267,18 @@ export const runMonthlyBilling = internalAction({
     for (const company of companies) {
       if (!company.monthlyAmount || company.monthlyAmount <= 0) continue;
       try {
+        // Skip companies already invoiced for this period (e.g. billed early
+        // last month for this month). generateForSubscription is also
+        // idempotent; this keeps the generated count accurate.
+        const existing = await ctx.runQuery(
+          internal.invoices.findByCompanyPeriod,
+          { companyId: company._id, periodKey: key },
+        );
+        if (existing?.pdfStorageId) {
+          billed.add(company._id);
+          continue;
+        }
+
         const id = await ctx.runAction(
           internal.invoicesBilling.generateForSubscription,
           {
@@ -274,6 +319,14 @@ export const runMonthlyBilling = internalAction({
         continue;
       }
       try {
+        const existing = await ctx.runQuery(
+          internal.invoices.findByCompanyPeriod,
+          { companyId: item.company._id, periodKey: key },
+        );
+        if (existing?.pdfStorageId) {
+          continue;
+        }
+
         const amounts = resolveBillingAmounts(item);
         const id = await ctx.runAction(
           internal.invoicesBilling.generateForSubscription,
