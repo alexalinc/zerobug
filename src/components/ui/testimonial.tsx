@@ -106,7 +106,7 @@ function ClientFeedback() {
         </article>
 
         <div className="lg:grid lg:grid-cols-3 gap-3 flex flex-col w-full pt-12 pb-4">
-          <div className="md:flex lg:flex-col lg:space-y-3 h-full lg:gap-0 gap-3">
+          <div className="flex flex-col gap-3 h-full">
             <TimelineContent
               animationNum={0}
               customVariants={revealVariants}
@@ -171,7 +171,7 @@ function ClientFeedback() {
             </TimelineContent>
           </div>
 
-          <div className="lg:h-full md:flex lg:flex-col h-fit lg:space-y-3 lg:gap-0 gap-3">
+          <div className="flex flex-col gap-3 lg:h-full h-fit">
             {TESTIMONIALS.mid.map((item, idx) => (
               <TimelineContent
                 key={item.name}
@@ -205,7 +205,7 @@ function ClientFeedback() {
             ))}
           </div>
 
-          <div className="h-full md:flex lg:flex-col lg:space-y-3 lg:gap-0 gap-3">
+          <div className="flex flex-col gap-3 h-full">
             <TimelineContent
               animationNum={5}
               customVariants={revealVariants}
