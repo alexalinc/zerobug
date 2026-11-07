@@ -443,6 +443,23 @@ function SetariPageInner() {
             Conversions = email + telefon hash. Sub formular vezi răspunsul API
             Google pentru fiecare conversie trimisă.
           </p>
+          <p className="mt-2 rounded-lg border border-amber-500/20 bg-amber-500/5 px-3 py-2 text-[11px] leading-relaxed text-amber-100/90">
+            În Google Cloud (același proiect ca OAuth Client ID) activează{" "}
+            <strong className="font-medium text-amber-50">
+              Data Manager API
+            </strong>{" "}
+            (
+            <a
+              href="https://console.cloud.google.com/apis/library/datamanager.googleapis.com"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="underline decoration-amber-400/50 underline-offset-2 hover:text-white"
+            >
+              Library → Data Manager API → Enable
+            </a>
+            ). Fără Enable, sync-ul lead → conversie returnează HTTP 403
+            SERVICE_DISABLED.
+          </p>
         </div>
 
         {gadsBanner ? (
@@ -850,6 +867,8 @@ function SetariPageInner() {
           {"\n"}
           (GOOGLE_* + DEVELOPER_TOKEN și în Convex Dashboard → Environment
           Variables)
+          {"\n"}
+          + Enable Data Manager API pe proiectul GCP al OAuth Client ID
         </code>
       </div>
     </div>
