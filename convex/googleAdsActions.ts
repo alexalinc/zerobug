@@ -24,6 +24,69 @@ function truncateApiBody(text: string): string {
   return `${trimmed.slice(0, MAX_API_RESPONSE_CHARS)}…`;
 }
 
+type GoogleApiErrorBody = {
+  error?: {
+    message?: string;
+    status?: string;
+    details?: Array<{
+      reason?: string;
+      metadata?: {
+        service?: string;
+        activationUrl?: string;
+        serviceTitle?: string;
+        containerInfo?: string;
+      };
+      links?: Array<{ description?: string; url?: string }>;
+    }>;
+  };
+};
+
+/**
+ * Maps Google API JSON errors to short RO messages (admin UI).
+ * SERVICE_DISABLED on Data Manager is the usual first-time setup miss.
+ */
+function humanizeDataManagerError(
+  status: number,
+  json: GoogleApiErrorBody,
+  rawText: string,
+): string {
+  const details = json.error?.details ?? [];
+  const serviceDisabled = details.find(
+    (d) =>
+      d.reason === "SERVICE_DISABLED" ||
+      /datamanager\.googleapis\.com/i.test(d.metadata?.service ?? ""),
+  );
+  const activationUrl =
+    serviceDisabled?.metadata?.activationUrl ||
+    details.flatMap((d) => d.links ?? []).find((l) => l.url)?.url ||
+    undefined;
+  const projectId = serviceDisabled?.metadata?.containerInfo;
+  const combined = `${json.error?.message ?? ""} ${rawText}`;
+
+  if (
+    serviceDisabled ||
+    /Data Manager API has not been used|SERVICE_DISABLED|datamanager\.googleapis\.com/i.test(
+      combined,
+    )
+  ) {
+    const projectHint = projectId ? ` (proiect ${projectId})` : "";
+    const link = activationUrl
+      ? ` Activează aici: ${activationUrl}`
+      : " Activează „Data Manager API” în Google Cloud Console → APIs & Services → Library, pe același proiect ca OAuth Client ID.";
+    return `Data Manager API e dezactivat în Google Cloud${projectHint}.${link} Așteaptă 1–5 min după Enable, apoi reîncearcă sync pe lead.`;
+  }
+
+  if (/ACCESS_TOKEN_SCOPE_INSUFFICIENT|insufficient.*scope/i.test(combined)) {
+    return "Lipsește scope-ul Data Manager. Deconectează Google Ads, reconectează și acceptă toate permisiunile.";
+  }
+
+  return (
+    json.error?.message ||
+    rawText.slice(0, 400) ||
+    `Data Manager error ${status}`
+  );
+}
+
 function sha256Hex(value: string): string {
   return createHash("sha256").update(value, "utf8").digest("hex");
 }
@@ -370,7 +433,7 @@ export const uploadLeadConversion = internalAction({
       });
 
       const text = await res.text();
-      let json: { requestId?: string; error?: { message?: string } } = {};
+      let json: GoogleApiErrorBody & { requestId?: string } = {};
       try {
         json = JSON.parse(text) as typeof json;
       } catch {
@@ -379,10 +442,7 @@ export const uploadLeadConversion = internalAction({
       const apiResponse = truncateApiBody(text || JSON.stringify({ ok: res.ok }));
 
       if (!res.ok) {
-        const msg =
-          json.error?.message ||
-          text.slice(0, 400) ||
-          `Data Manager error ${res.status}`;
+        const msg = humanizeDataManagerError(res.status, json, text);
         console.error("Google Ads ingest failed:", msg);
         await ctx.runMutation(internal.googleAds.patchLeadSyncInternal, {
           leadId: args.leadId,
