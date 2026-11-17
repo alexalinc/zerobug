@@ -194,8 +194,9 @@ export default function FacturiPage() {
 
   const [showGenerate, setShowGenerate] = useState(false);
   const [generateTab, setGenerateTab] = useState<"monthly" | "oneoff">(
-    "monthly",
+    "oneoff",
   );
+  const [clientSearch, setClientSearch] = useState("");
   const isNextMonthBilling = billingPeriodKey === upcomingPeriodKey;
   const [busyId, setBusyId] = useState<Id<"companies"> | null>(null);
   const [oneOffBusy, setOneOffBusy] = useState(false);
@@ -223,7 +224,7 @@ export default function FacturiPage() {
   const [oneOffAmount, setOneOffAmount] = useState("");
   const [oneOffVatMode, setOneOffVatMode] = useState<VatMode>("excluded");
   const [oneOffDescription, setOneOffDescription] = useState(
-    "Prestare servicii conform contract",
+    "Prestare servicii",
   );
 
   const oneOffPreview = useMemo(() => {
@@ -231,6 +232,18 @@ export default function FacturiPage() {
     if (!amount || amount <= 0) return null;
     return computeVatAmounts(amount, oneOffVatMode);
   }, [oneOffAmount, oneOffVatMode]);
+
+  const filteredClients = useMemo(() => {
+    const list = clientsForInvoice ?? [];
+    const q = clientSearch.trim().toLowerCase();
+    if (!q) return list;
+    return list.filter(
+      (c) =>
+        c.name.toLowerCase().includes(q) ||
+        c.email.toLowerCase().includes(q) ||
+        (c.cui?.toLowerCase().includes(q) ?? false),
+    );
+  }, [clientsForInvoice, clientSearch]);
 
   const selectableIds = useMemo(
     () =>
@@ -319,6 +332,7 @@ export default function FacturiPage() {
   function resetOneOffForm() {
     setOneOffMode("existing");
     setOneOffCompanyId("");
+    setClientSearch("");
     setOneOffClient({
       name: "",
       email: "",
@@ -330,7 +344,24 @@ export default function FacturiPage() {
     setOneOffSaveClient(true);
     setOneOffAmount("");
     setOneOffVatMode("excluded");
-    setOneOffDescription("Prestare servicii conform contract");
+    setOneOffDescription("Prestare servicii");
+  }
+
+  function applyClientDefaults(companyId: string) {
+    setOneOffCompanyId(companyId);
+    const c = clientsForInvoice?.find((x) => x._id === companyId);
+    if (!c) return;
+    if (c.vatMode) setOneOffVatMode(c.vatMode);
+    const desc =
+      c.lastDescription || c.invoiceDescription || "Prestare servicii";
+    setOneOffDescription(desc);
+    const suggested =
+      typeof c.monthlyAmount === "number" && c.monthlyAmount > 0
+        ? c.monthlyAmount
+        : c.lastNetAmount;
+    if (typeof suggested === "number" && suggested > 0) {
+      setOneOffAmount(String(suggested));
+    }
   }
 
   async function onGenerateOneOff(e: React.FormEvent) {
@@ -341,6 +372,10 @@ export default function FacturiPage() {
       setError("Introdu o sumă validă");
       return;
     }
+    if (!oneOffDescription.trim()) {
+      setError("Adaugă descrierea pe factură");
+      return;
+    }
     setOneOffBusy(true);
     setError(null);
     try {
@@ -348,7 +383,7 @@ export default function FacturiPage() {
         sessionToken: token,
         amount,
         vatMode: oneOffVatMode,
-        description: oneOffDescription,
+        description: oneOffDescription.trim(),
         ...(oneOffMode === "existing"
           ? { companyId: oneOffCompanyId as Id<"companies"> }
           : {
@@ -363,10 +398,19 @@ export default function FacturiPage() {
               saveClient: oneOffSaveClient,
             }),
       });
-      setError("Factură unică generată și trimisă.");
+      setError("Factură manuală generată și trimisă.");
       resetOneOffForm();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Generarea a eșuat");
+      const message =
+        err instanceof Error ? err.message : "Generarea a eșuat";
+      if (/connection lost while action was in flight/i.test(message)) {
+        setError(
+          "Factură manuală generată. Conexiunea s-a întrerupt în timp ce se genera PDF/email — verifică lista; de obicei factura e deja creată.",
+        );
+        resetOneOffForm();
+      } else {
+        setError(message);
+      }
     } finally {
       setOneOffBusy(false);
     }
@@ -466,6 +510,7 @@ export default function FacturiPage() {
   const loading = invoices === undefined;
   const isSuccessBanner =
     error?.startsWith("Trimis la contabilitate") ||
+    error?.startsWith("Factură manuală generată") ||
     error?.startsWith("Factură unică generată") ||
     error?.startsWith("Factură generată pentru");
 
@@ -589,10 +634,23 @@ export default function FacturiPage() {
                 Generare factură
               </p>
               <p className="mt-1 text-xs text-zinc-500">
-                Lunară pe firme active, sau factură unică pentru orice client
+                Manuală: alegi firma, scrii descrierea și suma — sau lunară pe
+                abonamente
               </p>
             </div>
             <div className="flex rounded-xl border border-white/10 bg-black/20 p-1">
+              <button
+                type="button"
+                onClick={() => setGenerateTab("oneoff")}
+                className={cn(
+                  "rounded-lg px-3 py-1.5 text-xs font-medium transition-colors",
+                  generateTab === "oneoff"
+                    ? "bg-white/10 text-white"
+                    : "text-zinc-500 hover:text-zinc-300",
+                )}
+              >
+                Factură manuală
+              </button>
               <button
                 type="button"
                 onClick={() => setGenerateTab("monthly")}
@@ -604,18 +662,6 @@ export default function FacturiPage() {
                 )}
               >
                 Firme lunare
-              </button>
-              <button
-                type="button"
-                onClick={() => setGenerateTab("oneoff")}
-                className={cn(
-                  "rounded-lg px-3 py-1.5 text-xs font-medium transition-colors",
-                  generateTab === "oneoff"
-                    ? "bg-white/10 text-white"
-                    : "text-zinc-500 hover:text-zinc-300",
-                )}
-              >
-                Factură unică
               </button>
             </div>
           </div>
@@ -758,6 +804,12 @@ export default function FacturiPage() {
               onSubmit={(e) => void onGenerateOneOff(e)}
               className="space-y-5 px-5 pb-6 md:px-6"
             >
+              <p className="text-xs leading-relaxed text-zinc-500">
+                Emite o factură ad-hoc: selectezi o firmă deja facturată (chiar
+                și o singură dată), scrii descrierea (ex. „Prestare servicii”)
+                și setezi suma — exact ca o factură normală, fără ciclul lunar.
+              </p>
+
               <div className="flex flex-wrap gap-2">
                 <button
                   type="button"
@@ -769,7 +821,7 @@ export default function FacturiPage() {
                       : "border-white/10 text-zinc-400 hover:text-zinc-200",
                   )}
                 >
-                  Client existent
+                  Firmă deja facturată
                 </button>
                 <button
                   type="button"
@@ -782,44 +834,52 @@ export default function FacturiPage() {
                   )}
                 >
                   <UserPlus className="size-3.5" />
-                  Client nou (nesalvat)
+                  Client nou
                 </button>
               </div>
 
               {oneOffMode === "existing" ? (
-                <div className="space-y-2">
-                  <Label htmlFor="oneoff-client">Selectează clientul</Label>
-                  <select
-                    id="oneoff-client"
-                    required
-                    value={oneOffCompanyId}
-                    onChange={(e) => {
-                      const id = e.target.value;
-                      setOneOffCompanyId(id);
-                      const c = clientsForInvoice?.find((x) => x._id === id);
-                      if (c) {
-                        if (c.vatMode) setOneOffVatMode(c.vatMode);
-                        if (c.invoiceDescription) {
-                          setOneOffDescription(c.invoiceDescription);
-                        }
-                      }
-                    }}
-                    className="h-9 w-full rounded-lg border border-white/15 bg-zinc-950 px-3 text-sm text-white outline-none focus-visible:border-[color:var(--brand)]/50"
-                  >
-                    <option value="">— Alege din clienți —</option>
-                    {(clientsForInvoice ?? []).map((c) => (
-                      <option key={c._id} value={c._id}>
-                        {c.name}
-                        {c.hasMonthlyBilling ? " · lunar" : ""} · {c.email}
-                      </option>
-                    ))}
-                  </select>
-                  {(clientsForInvoice ?? []).length === 0 ? (
-                    <p className="text-xs text-zinc-500">
-                      Nu există clienți salvați. Adaugă unul nou mai jos sau în
-                      Firme.
-                    </p>
-                  ) : null}
+                <div className="space-y-3">
+                  <div className="space-y-2">
+                    <Label htmlFor="oneoff-search">Caută firmă</Label>
+                    <Input
+                      id="oneoff-search"
+                      value={clientSearch}
+                      onChange={(e) => setClientSearch(e.target.value)}
+                      placeholder="Nume, email sau CUI…"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="oneoff-client">Selectează firma</Label>
+                    <select
+                      id="oneoff-client"
+                      required
+                      value={oneOffCompanyId}
+                      onChange={(e) => applyClientDefaults(e.target.value)}
+                      className="h-9 w-full rounded-lg border border-white/15 bg-zinc-950 px-3 text-sm text-white outline-none focus-visible:border-[color:var(--brand)]/50"
+                    >
+                      <option value="">— Alege din firme facturate —</option>
+                      {filteredClients.map((c) => (
+                        <option key={c._id} value={c._id}>
+                          {c.name}
+                          {c.invoiceCount > 0
+                            ? ` · ${c.invoiceCount} factură${c.invoiceCount === 1 ? "" : "i"}`
+                            : " · fără facturi încă"}
+                          {c.hasMonthlyBilling ? " · lunar" : ""} · {c.email}
+                        </option>
+                      ))}
+                    </select>
+                    {(clientsForInvoice ?? []).length === 0 ? (
+                      <p className="text-xs text-zinc-500">
+                        Nu există firme facturate sau clienți salvați. Adaugă un
+                        client nou sau emite întâi o factură lunară.
+                      </p>
+                    ) : filteredClients.length === 0 ? (
+                      <p className="text-xs text-zinc-500">
+                        Nicio firmă nu corespunde căutării.
+                      </p>
+                    ) : null}
+                  </div>
                 </div>
               ) : (
                 <div className="grid gap-4 sm:grid-cols-2">
@@ -930,9 +990,9 @@ export default function FacturiPage() {
                 </div>
               )}
 
-              <div className="grid gap-4 border-t border-white/[0.06] pt-5 sm:grid-cols-3">
+              <div className="grid gap-4 border-t border-white/[0.06] pt-5 sm:grid-cols-2">
                 <div className="space-y-2">
-                  <Label htmlFor="oneoff-amount">Sumă *</Label>
+                  <Label htmlFor="oneoff-amount">Sumă (RON) *</Label>
                   <Input
                     id="oneoff-amount"
                     type="number"
@@ -943,6 +1003,9 @@ export default function FacturiPage() {
                     onChange={(e) => setOneOffAmount(e.target.value)}
                     placeholder="0.00"
                   />
+                  <p className="text-[11px] text-zinc-600">
+                    Poți modifica liber suma — nu e legată de abonamentul lunar.
+                  </p>
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="oneoff-vat">Mod TVA</Label>
@@ -958,13 +1021,16 @@ export default function FacturiPage() {
                     <option value="included">TVA inclus în sumă</option>
                   </select>
                 </div>
-                <div className="space-y-2 sm:col-span-3">
+                <div className="space-y-2 sm:col-span-2">
                   <Label htmlFor="oneoff-desc">Descriere pe factură *</Label>
-                  <Input
+                  <textarea
                     id="oneoff-desc"
                     required
+                    rows={3}
                     value={oneOffDescription}
                     onChange={(e) => setOneOffDescription(e.target.value)}
+                    placeholder="ex. Prestare servicii de marketing digital"
+                    className="w-full rounded-lg border border-white/15 bg-zinc-950 px-3 py-2 text-sm text-white outline-none placeholder:text-zinc-600 focus-visible:border-[color:var(--brand)]/50"
                   />
                 </div>
               </div>

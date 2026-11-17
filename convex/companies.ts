@@ -41,6 +41,10 @@ const clientPickerDoc = v.object({
   ),
   invoiceDescription: v.optional(v.string()),
   hasMonthlyBilling: v.boolean(),
+  monthlyAmount: v.optional(v.number()),
+  invoiceCount: v.number(),
+  lastNetAmount: v.optional(v.number()),
+  lastDescription: v.optional(v.string()),
 });
 
 const vatModeArg = v.optional(
@@ -57,31 +61,63 @@ export const list = query({
   },
 });
 
-/** Active listed clients for one-off invoice picker (includes monthly firms). */
+/**
+ * Clients for manual (one-off) invoice picker:
+ * - active firms saved in Firme
+ * - plus any firm already invoiced at least once (even one-time / unlisted guests)
+ */
 export const listForInvoicing = query({
   args: { sessionToken: v.string() },
   returns: v.array(clientPickerDoc),
   handler: async (ctx, args) => {
     await requireAdminSession(args.sessionToken);
-    const companies = await ctx.db
-      .query("companies")
-      .withIndex("by_status", (q) => q.eq("status", "active"))
-      .take(500);
+    const companies = await ctx.db.query("companies").take(500);
+    const invoices = await ctx.db.query("invoices").order("desc").take(2000);
+
+    const stats = new Map<
+      string,
+      { count: number; lastNetAmount?: number; lastDescription?: string }
+    >();
+    for (const inv of invoices) {
+      const key = inv.companyId;
+      const existing = stats.get(key);
+      if (existing) {
+        existing.count += 1;
+        continue;
+      }
+      stats.set(key, {
+        count: 1,
+        lastNetAmount: inv.netAmount,
+        lastDescription: inv.lines[0]?.description,
+      });
+    }
+
     return companies
-      .filter((c) => c.listedAsClient !== false)
-      .map((c) => ({
-        _id: c._id,
-        name: c.name,
-        email: c.email,
-        cui: c.cui,
-        regCom: c.regCom,
-        address: c.address,
-        phone: c.phone,
-        vatMode: c.vatMode,
-        invoiceDescription: c.invoiceDescription,
-        hasMonthlyBilling:
-          typeof c.monthlyAmount === "number" && c.monthlyAmount > 0,
-      }))
+      .filter((c) => {
+        if (c.status !== "active") return false;
+        if (c.listedAsClient !== false) return true;
+        return stats.has(c._id);
+      })
+      .map((c) => {
+        const s = stats.get(c._id);
+        return {
+          _id: c._id,
+          name: c.name,
+          email: c.email,
+          cui: c.cui,
+          regCom: c.regCom,
+          address: c.address,
+          phone: c.phone,
+          vatMode: c.vatMode,
+          invoiceDescription: c.invoiceDescription,
+          hasMonthlyBilling:
+            typeof c.monthlyAmount === "number" && c.monthlyAmount > 0,
+          monthlyAmount: c.monthlyAmount,
+          invoiceCount: s?.count ?? 0,
+          lastNetAmount: s?.lastNetAmount,
+          lastDescription: s?.lastDescription,
+        };
+      })
       .sort((a, b) => a.name.localeCompare(b.name, "ro"));
   },
 });
